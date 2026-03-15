@@ -110,6 +110,33 @@ open http://localhost:3000
 open http://localhost:8000/docs
 ```
 
+## Current Direction
+
+- `ASP.NET Core` is the target public API for V2
+- `.NET` remains the target engine and worker runtime
+- Python remains the migration reference layer and plugin/runtime language
+
+## Database
+
+Hermes should support:
+
+- PostgreSQL
+- Microsoft SQL Server
+
+Recommended schema ownership:
+
+- PostgreSQL: `hermes.<table>`
+- SQL Server: `hermes.<table>`
+
+The Docker database is optional. Users who already run PostgreSQL or SQL Server
+should be able to connect Hermes directly to an existing instance by
+configuration.
+
+Bootstrap assets:
+
+- `database/postgresql/init_query.sql`
+- `database/sqlserver/init_query.sql`
+
 ---
 
 ## Architecture

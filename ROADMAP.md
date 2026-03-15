@@ -67,6 +67,7 @@ NiFi의 강점(per-item tracking, provenance)을 가져가되,
 ### Core Pipeline
 - [ ] ASP.NET Core 8 Web API 프로젝트 셋업
 - [ ] EF Core + PostgreSQL (Code First Migrations)
+- [ ] SQL Server provider support
 - [ ] Definition CRUD (Collector, Algorithm, Transfer + Versions)
 - [ ] Instance CRUD + Recipe 버전 관리
 - [ ] Pipeline CRUD + Step 순서 관리
@@ -101,16 +102,20 @@ NiFi의 강점(per-item tracking, provenance)을 가져가되,
 
 ### Infrastructure
 - [ ] Docker Compose (API + Worker + PostgreSQL)
+- [ ] Existing database connection mode (no Docker DB required)
 - [ ] Health Check endpoints
 - [ ] Structured logging (Serilog)
 - [ ] appsettings.json 구조
 
 ### Testing
 - [ ] xUnit 프로젝트 셋업
+- [ ] .NET build smoke + API contract tests
 - [ ] Domain 단위 테스트 (Recipe, Job lifecycle)
 - [ ] Application 서비스 테스트
 - [ ] API 통합 테스트 (WebApplicationFactory)
 - [ ] TestContainers (PostgreSQL)
+- [ ] Existing PostgreSQL instance connectivity tests
+- [ ] Existing SQL Server instance connectivity tests
 - [ ] CI: GitHub Actions (build + test on PR)
 
 ### Milestone Criteria

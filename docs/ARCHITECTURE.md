@@ -1245,3 +1245,32 @@ hermes/
 - Recipe management for non-developers
 - Reprocessing as first-class citizen
 - NiFi-friendly but NiFi-independent
+
+---
+
+## 16. Migration Direction
+
+The repository may temporarily contain both a Python reference API path and a `.NET` API path.
+
+The intended V2 direction is:
+
+- React remains the user-facing UI
+- ASP.NET Core becomes the public API
+- `.NET` workers and engine own runtime behavior
+- Python remains for reference behavior, plugin support, and migration comparison
+
+## 17. Database Strategy
+
+Hermes should support both PostgreSQL and SQL Server.
+
+Key rules:
+
+- use a dedicated `hermes` schema by default
+- Docker database services are optional
+- users with an existing database installation should be able to connect directly by configuration
+- provider-specific bootstrap scripts must be updated whenever tables, indexes, constraints, or schema ownership change
+
+Bootstrap assets:
+
+- `database/postgresql/init_query.sql`
+- `database/sqlserver/init_query.sql`

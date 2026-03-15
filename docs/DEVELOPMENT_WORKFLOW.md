@@ -231,3 +231,26 @@ patch: 버그 수정
 9. release → main 머지
 10. main → develop 역머지
 ```
+---
+
+## 6. Additional V2 Guardrails
+
+Before merge, contributors should also verify:
+
+- `dotnet build engine/Hermes.sln`
+- `dotnet test engine/tests/Hermes.Api.Tests/Hermes.Api.Tests.csproj`
+
+If database schema changes:
+
+- update `database/postgresql/init_query.sql`
+- update `database/sqlserver/init_query.sql`
+- keep application models and bootstrap assets in sync
+
+Recommended parallel workstreams:
+
+1. API migration
+2. domain parity porting
+3. runtime and orchestrator behavior
+4. plugin protocol and SDK
+5. realtime UX integration
+6. ops, observability, and database provider support

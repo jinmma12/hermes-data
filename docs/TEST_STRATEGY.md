@@ -1420,3 +1420,55 @@ dev = [
 | **Phase 6** | CI pipeline, coverage gates | 0.5 days | Automation |
 
 **Total estimated effort: ~8.5 days for comprehensive test suite.**
+
+---
+
+## 12. Build Smoke And Provider Matrix
+
+Build smoke is the shallowest safety net for the new `.NET` path.
+
+It verifies:
+
+- solution restore succeeds
+- solution build succeeds
+- minimum public API endpoints respond with the expected contract
+
+Current smoke commands:
+
+```bash
+dotnet build engine/Hermes.sln
+dotnet test engine/tests/Hermes.Api.Tests/Hermes.Api.Tests.csproj
+```
+
+Current `.NET API` contract coverage includes:
+
+- `/`
+- `/health/live`
+- `/health/ready`
+- `/api/v1/system/info`
+- `/api/v1/definitions/{kind}`
+- `/api/v1/definitions/{kind}/{id}`
+- `/api/v1/definitions/{kind}/{id}/versions`
+- `/api/v1/pipelines`
+- `/api/v1/pipelines/{id}`
+- `/api/v1/pipelines/{id}/stages`
+- `/api/v1/jobs`
+- `/api/v1/jobs/{id}`
+- `/api/v1/monitor/stats`
+- `/api/v1/monitor/activations`
+- `/api/v1/monitor/recent-jobs`
+
+Hermes should eventually validate both supported providers and both operating modes:
+
+| Provider | Mode | Purpose |
+|---|---|---|
+| PostgreSQL | Docker | default local/CI bootstrap |
+| PostgreSQL | Existing instance | user-managed database connectivity |
+| SQL Server | Existing instance | provider parity for enterprise installs |
+
+Provider-aware tests should cover:
+
+- schema bootstrap
+- migrations
+- index/constraint compatibility
+- configurable schema namespace (default `hermes`)

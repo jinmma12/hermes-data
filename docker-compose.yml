@@ -7,15 +7,15 @@ services:
     profiles: ["docker-db"]
     restart: unless-stopped
     environment:
-      POSTGRES_USER: hermes
-      POSTGRES_PASSWORD: hermes
-      POSTGRES_DB: hermes_db
+      POSTGRES_USER: ${HERMES_POSTGRES_USER:-hermes}
+      POSTGRES_PASSWORD: ${HERMES_POSTGRES_PASSWORD:-change-me-local-only}
+      POSTGRES_DB: ${HERMES_POSTGRES_DB:-hermes_db}
     ports:
       - "5432:5432"
     volumes:
       - hermes_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hermes -d hermes_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${HERMES_POSTGRES_USER:-hermes} -d ${HERMES_POSTGRES_DB:-hermes_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -35,7 +35,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://hermes:hermes@postgres:5432/hermes_db
+      DATABASE_URL: postgresql+asyncpg://${HERMES_POSTGRES_USER:-hermes}:${HERMES_POSTGRES_PASSWORD:-change-me-local-only}@postgres:5432/${HERMES_POSTGRES_DB:-hermes_db}
       ENGINE_GRPC_HOST: engine
       ENGINE_GRPC_PORT: "50051"
     depends_on:
@@ -54,7 +54,7 @@ services:
       - "50051:50051"   # gRPC
       - "9090:9090"     # Prometheus metrics
     environment:
-      ConnectionStrings__DefaultConnection: "Host=postgres;Database=hermes_db;Username=hermes;Password=hermes"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=${HERMES_POSTGRES_DB:-hermes_db};Username=${HERMES_POSTGRES_USER:-hermes};Password=${HERMES_POSTGRES_PASSWORD:-change-me-local-only}"
       Grpc__Port: "50051"
       Metrics__PrometheusPort: "9090"
     networks:

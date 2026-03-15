@@ -1,33 +1,46 @@
-# Hermes - Project Structure (Polyglot Architecture)
+# Hermes - Project Structure (Transitioning Architecture)
 
-> Python (Web API) + .NET (Core Engine) + React (Frontend)
+> Current state: Python (reference API) + .NET (target API/Engine) + React (Frontend)
 >
-> Each layer owns its strengths: Python for rapid API development and UI serving,
-> .NET for high-throughput engine processing with back-throughput and resilience,
-> React for visual pipeline design.
+> V2 direction: ASP.NET Core becomes the public API, .NET remains the engine,
+> and Python shifts toward reference logic, plugin support, and migration parity.
 
 ---
 
 ## 1. Polyglot Architecture
 
 ```
-React (Frontend) <--> Python FastAPI (Web API) <--> .NET Core Engine
-                                                       | gRPC
-                                                 Algorithm Containers
+Current:
+React (Frontend) <--> Python FastAPI (reference API) <--> .NET Core Engine
+
+Target:
+React (Frontend) <--> ASP.NET Core API <--> .NET Workers / Engine
+                                            | gRPC
+                                      Algorithm Containers
 ```
 
-### Python Web API Layer (`backend/`)
+### Python Reference Layer (`backend/`)
 
-The Python layer is the **public-facing API surface**. It handles everything the
-user or frontend touches directly:
+The Python layer currently contains the richest reference implementation and test corpus.
+It should be treated as a migration source and compatibility reference:
 
-- REST API endpoints (CRUD for Jobs, Pipelines, Recipes, Definitions)
-- WebSocket for real-time events (pipeline status, job progress)
-- Authentication, CORS, rate limiting
-- Serves the React frontend (production build)
-- Communicates with .NET Engine via gRPC (`hermes_bridge.proto`)
-- PostgreSQL access for read-heavy UI queries (SQLAlchemy async)
+- existing REST API endpoints and schemas
+- existing WebSocket/event forwarding logic
+- existing domain behavior and pytest scenarios
+- current PostgreSQL async data access
 - Tests: pytest (API tests, schema validation, auth tests)
+
+This layer should shrink over time as route parity moves into ASP.NET Core.
+
+### .NET API Layer (`engine/src/Hermes.Api/`)
+
+The ASP.NET Core layer is the target public API surface for V2:
+
+- REST endpoints for the React frontend
+- health and contract-tested API surfaces
+- OpenAPI/Swagger and realtime endpoints
+- provider-aware data access for PostgreSQL and SQL Server
+- API contract tests via `WebApplicationFactory`
 
 ### .NET Core Engine (`engine/`)
 
@@ -222,7 +235,8 @@ service HermesEngineService {
 
 | Test Category | Language | Location | Why |
 |---|---|---|---|
-| API endpoint tests | Python | `backend/tests/` | Testing FastAPI routes, request/response shapes |
+| API endpoint tests | .NET | `engine/tests/Hermes.Api.Tests/` | Target API contract for the React frontend |
+| FastAPI parity/reference tests | Python | `backend/tests/` | Existing behavior reference during migration |
 | Recipe CRUD tests | Python | `backend/tests/` | DB operations via SQLAlchemy (Python owns the read path) |
 | Schema validation | Python | `backend/tests/` | Pydantic DTO validation |
 | Auth / CORS tests | Python | `backend/tests/` | Middleware lives in Python layer |
@@ -232,7 +246,7 @@ service HermesEngineService {
 | Dead Letter Queue | C# / xUnit | `engine/tests/` | DLQ management in .NET |
 | Orchestration | C# / xUnit | `engine/tests/` | Stage execution, state transitions |
 | Plugin protocol | Both | both | gRPC contract tests (proto compatibility) |
-| E2E scenarios | Python | `backend/tests/` | Full stack through API (pytest + docker) |
+| E2E scenarios | Both | both | Transition period until FastAPI is retired |
 
 ### Test Naming Conventions
 
@@ -297,13 +311,30 @@ docker compose up -d
 
 | Variable | Component | Default | Description |
 |---|---|---|---|
-| `DATABASE_URL` | Python | `postgresql+asyncpg://...` | PostgreSQL connection string |
+| `DATABASE_URL` | Python | `postgresql+asyncpg://...` | Python reference PostgreSQL connection string |
 | `HERMES_ENGINE_GRPC_URL` | Python | `localhost:5100` | .NET Engine gRPC endpoint |
-| `ConnectionStrings__HermesDb` | .NET | `Host=localhost;...` | EF Core PostgreSQL connection |
+| `Database__Provider` | .NET | `postgres` | `postgres` or `sqlserver` |
+| `Database__Schema` | .NET | `hermes` | Dedicated Hermes schema/namespace |
+| `Database__ConnectionStrings__Postgres` | .NET | `Host=localhost;...` | PostgreSQL connection |
+| `Database__ConnectionStrings__SqlServer` | .NET | `Server=localhost;...` | SQL Server connection |
 | `GrpcServer__Port` | .NET | `5100` | gRPC listen port |
 | `Kafka__BootstrapServers` | .NET | `localhost:9092` | Kafka broker address |
 | `ContentRepository__BasePath` | .NET | `./content-repo` | Disk storage for content claims |
 | `VITE_API_URL` | React | `http://localhost:8000` | Backend API base URL |
+
+## 6. Database Support
+
+Hermes V2 should support both PostgreSQL and SQL Server.
+
+- default schema: `hermes`
+- Docker DB is optional
+- users with existing DB infrastructure should be able to connect directly
+- provider-specific bootstrap scripts must be kept in sync with application models
+
+Bootstrap assets:
+
+- `database/postgresql/init_query.sql`
+- `database/sqlserver/init_query.sql`
 
 ### Running Tests
 

@@ -21,7 +21,7 @@ export default function PipelineListPage() {
     try {
       setLoading(true);
       const data = await pipelines.list();
-      setPipelineList(data);
+      setPipelineList(Array.isArray(data) ? data : []);
     } catch (err) {
       setError('Failed to load pipelines');
       // Use mock data for demo

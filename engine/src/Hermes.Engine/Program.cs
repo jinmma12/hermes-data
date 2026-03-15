@@ -9,6 +9,7 @@ using Hermes.Engine.Services.Monitors;
 using Hermes.Engine.Services.Plugins;
 using Hermes.Engine.Workers;
 using Hermes.Engine.Observability;
+using Hermes.Engine.Services.Nifi;
 using Prometheus;
 
 Log.Logger = new LoggerConfiguration()
@@ -85,6 +86,19 @@ try
 
     // Schema registry (schema discovery & drift detection)
     builder.Services.AddSingleton<ISchemaRegistry, SchemaRegistry>();
+
+    // Checkpoint manager (exactly-once processing with step-level checkpointing)
+    builder.Services.AddSingleton<ICheckpointManager, CheckpointManager>();
+
+    // NiFi integration (optional)
+    var nifiConfig = builder.Configuration.GetSection("NiFi").Get<NiFiClientConfig>() ?? new NiFiClientConfig();
+    if (nifiConfig.Enabled)
+    {
+        builder.Services.AddSingleton(nifiConfig);
+        builder.Services.AddHttpClient<INiFiClient, NiFiClient>();
+        builder.Services.AddSingleton<INiFiBridge, NiFiBridge>();
+        Log.Information("NiFi integration enabled: {Url}", nifiConfig.BaseUrl);
+    }
 
     // Monitoring engine (singleton - manages all monitoring tasks)
     builder.Services.AddSingleton<IMonitoringEngine, MonitoringEngine>();

@@ -183,7 +183,7 @@ NiFi의 강점(per-item tracking, provenance)을 가져가되,
 - [x] Audit Log (사용자 행동 추적)
 - [ ] Data Preview (파이프라인 실행 전 미리보기)
 - [x] Content-Based Routing (조건부 분기)
-- [ ] Rate Limiting
+- [x] Rate Limiting
 - [x] Circuit Breaker
 
 ### Deployment

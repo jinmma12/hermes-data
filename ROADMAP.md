@@ -53,9 +53,9 @@ NiFi의 강점(per-item tracking, provenance)을 가져가되,
 | DB 스키마 | ✅ Done | `backend/database/schema.sql` |
 | Python 프로토타입 | ✅ Done | `backend/`, `webapp/`, `plugins/` |
 | 벤치마크 Gap 분석 | ✅ Done | 17개 Gap 식별 (P0~P3) |
-| .NET Solution 설계 | 🔄 In Progress | `docs/DOTNET_SOLUTION_DESIGN.md` |
-| gRPC Protocol 설계 | 🔄 In Progress | `protos/hermes_plugin.proto` |
-| Domain Interface 설계 | 🔄 In Progress | `docs/DOMAIN_INTERFACES.md` |
+| .NET Solution 설계 | ✅ Done | `docs/DOTNET_SOLUTION_DESIGN.md` |
+| gRPC Protocol 설계 | ✅ Done | `protos/hermes_plugin.proto`, `hermes_bridge.proto`, `hermes_cluster.proto` |
+| Domain Interface 설계 | ✅ Done | `docs/DOMAIN_INTERFACES.md` |
 | V2 아키텍처 (분산/디스크) | 🔄 In Progress | `docs/V2_ARCHITECTURE.md` |
 
 ---
@@ -65,57 +65,52 @@ NiFi의 강점(per-item tracking, provenance)을 가져가되,
 > 목표: 단일 노드에서 동작하는 핵심 기능. 사내 PoC 가능 수준.
 
 ### Core Pipeline
-- [ ] ASP.NET Core 8 Web API 프로젝트 셋업
-- [ ] EF Core + PostgreSQL (Code First Migrations)
-- [ ] SQL Server provider support
-- [ ] Definition CRUD (Collector, Algorithm, Transfer + Versions)
-- [ ] Instance CRUD + Recipe 버전 관리
-- [ ] Pipeline CRUD + Step 순서 관리
-- [ ] Pipeline Activation/Deactivation
+- [x] ASP.NET Core 8 Web API 프로젝트 셋업
+- [x] EF Core + PostgreSQL (Code First Migrations)
+- [x] Definition CRUD (Collector, Algorithm, Transfer + Versions)
+- [x] Instance CRUD + Recipe 버전 관리
+- [x] Pipeline CRUD + Step 순서 관리
+- [x] Pipeline Activation/Deactivation
 
 ### Monitoring Engine
-- [ ] File Watcher (FileSystemWatcher + polling fallback)
-- [ ] API Poller (HttpClient + Polly)
+- [x] File Watcher (FileSystemWatcher + polling fallback)
+- [x] API Poller (HttpClient + Polly)
 - [ ] Kafka Consumer (Confluent.Kafka)
-- [ ] Condition Evaluator + dedup
+- [x] Condition Evaluator + dedup
 
 ### Processing Engine
-- [ ] Job 생성 + 상태 관리
-- [ ] Processing Orchestrator (순차 Step 실행)
-- [ ] Execution Snapshot 캡처
-- [ ] Event Log 기록
-- [ ] Reprocess (단건 + 일괄 + 특정 Step부터)
+- [x] Job 생성 + 상태 관리
+- [x] Processing Orchestrator (순차 Step 실행)
+- [x] Execution Snapshot 캡처
+- [x] Event Log 기록
+- [x] Reprocess (단건 + 일괄 + 특정 Step부터)
 
 ### Plugin System
-- [ ] gRPC Plugin Protocol v2 (hermes_plugin.proto)
+- [x] gRPC Plugin Protocol v2 (hermes_plugin.proto)
 - [ ] Hermes.Plugins.Sdk NuGet 패키지
-- [ ] Plugin 프로세스 관리 (spawn, health, kill)
+- [x] Plugin 프로세스 관리 (spawn, health, kill)
 - [ ] 빌트인 플러그인: REST API Collector, File Watcher, Passthrough, File Output
 
 ### Web UI
-- [ ] React + TypeScript + Vite 셋업
-- [ ] Pipeline Designer (React Flow)
-- [ ] Recipe Editor (react-jsonschema-form)
-- [ ] Monitor Dashboard
-- [ ] Job Explorer + Detail
-- [ ] Definition Manager
+- [x] React + TypeScript + Vite 셋업
+- [x] Pipeline Designer (React Flow)
+- [x] Recipe Editor (react-jsonschema-form)
+- [x] Monitor Dashboard
+- [x] Job Explorer + Detail
+- [x] Definition Manager
 
 ### Infrastructure
-- [ ] Docker Compose (API + Worker + PostgreSQL)
-- [ ] Existing database connection mode (no Docker DB required)
-- [ ] Health Check endpoints
-- [ ] Structured logging (Serilog)
-- [ ] appsettings.json 구조
+- [x] Docker Compose (API + Worker + PostgreSQL)
+- [x] Health Check endpoints
+- [x] Structured logging (Serilog)
+- [x] appsettings.json 구조
 
 ### Testing
-- [ ] xUnit 프로젝트 셋업
-- [ ] .NET build smoke + API contract tests
-- [ ] Domain 단위 테스트 (Recipe, Job lifecycle)
+- [x] xUnit 프로젝트 셋업
+- [x] Domain 단위 테스트 (Recipe, Job lifecycle)
 - [ ] Application 서비스 테스트
 - [ ] API 통합 테스트 (WebApplicationFactory)
 - [ ] TestContainers (PostgreSQL)
-- [ ] Existing PostgreSQL instance connectivity tests
-- [ ] Existing SQL Server instance connectivity tests
 - [ ] CI: GitHub Actions (build + test on PR)
 
 ### Milestone Criteria

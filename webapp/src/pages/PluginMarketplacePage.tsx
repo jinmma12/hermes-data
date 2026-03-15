@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { PluginInfo } from '../types';
-import { StepType } from '../types';
+import { StageType } from '../types';
 import { plugins } from '../api/client';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 export default function PluginMarketplacePage() {
   const [pluginList, setPluginList] = useState<PluginInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | StepType>('all');
+  const [filter, setFilter] = useState<'all' | StageType>('all');
 
   useEffect(() => {
     loadPlugins();
@@ -21,19 +21,19 @@ export default function PluginMarketplacePage() {
     } catch {
       // Demo data
       setPluginList([
-        { name: 'rest-api-collector', version: '1.2.0', type: StepType.COLLECT, description: 'Collect data from REST APIs with support for authentication, pagination, and rate limiting.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
-        { name: 'file-watcher', version: '1.0.0', type: StepType.COLLECT, description: 'Monitor directories for new files using inotify (Linux) or polling (cross-platform).', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
-        { name: 'database-poller', version: '1.1.0', type: StepType.COLLECT, description: 'Poll database tables for changes using timestamp tracking or sequence IDs.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
-        { name: 'mqtt-collector', version: '0.9.0', type: StepType.COLLECT, description: 'Subscribe to MQTT topics for real-time IoT data ingestion.', author: 'vessel-community', license: 'MIT', runtime: 'python', installed: false, icon_url: null },
-        { name: 'kafka-consumer', version: '0.8.0', type: StepType.COLLECT, description: 'Consume messages from Apache Kafka topics with consumer group management.', author: 'vessel-community', license: 'Apache-2.0', runtime: 'python', installed: false, icon_url: null },
-        { name: 'anomaly-detector', version: '1.0.0', type: StepType.ALGORITHM, description: 'Statistical anomaly detection with z-score, IQR, and modified z-score methods.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
-        { name: 'data-transformer', version: '1.0.0', type: StepType.ALGORITHM, description: 'Transform data between JSON, CSV, XML formats with configurable mapping rules.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
-        { name: 'dedup-filter', version: '1.0.0', type: StepType.ALGORITHM, description: 'Remove duplicate records based on configurable keys and time windows.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
-        { name: 'ml-classifier', version: '0.5.0', type: StepType.ALGORITHM, description: 'Machine learning classification using scikit-learn models. Supports custom model loading.', author: 'vessel-community', license: 'MIT', runtime: 'python', installed: false, icon_url: null },
-        { name: 's3-uploader', version: '1.0.0', type: StepType.TRANSFER, description: 'Upload data to Amazon S3 with support for multipart upload, encryption, and compression.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
-        { name: 'database-writer', version: '1.0.0', type: StepType.TRANSFER, description: 'Write data to PostgreSQL, MySQL, or MSSQL with upsert and batch insert support.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
-        { name: 'webhook-sender', version: '1.0.0', type: StepType.TRANSFER, description: 'Send results to external HTTP webhook endpoints with retry and backoff.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: false, icon_url: null },
-        { name: 'elasticsearch-writer', version: '0.7.0', type: StepType.TRANSFER, description: 'Index documents into Elasticsearch with configurable mappings and bulk operations.', author: 'vessel-community', license: 'Apache-2.0', runtime: 'python', installed: false, icon_url: null },
+        { name: 'rest-api-collector', version: '1.2.0', type: StageType.COLLECT, description: 'Collect data from REST APIs with support for authentication, pagination, and rate limiting.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
+        { name: 'file-watcher', version: '1.0.0', type: StageType.COLLECT, description: 'Monitor directories for new files using inotify (Linux) or polling (cross-platform).', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
+        { name: 'database-poller', version: '1.1.0', type: StageType.COLLECT, description: 'Poll database tables for changes using timestamp tracking or sequence IDs.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
+        { name: 'mqtt-collector', version: '0.9.0', type: StageType.COLLECT, description: 'Subscribe to MQTT topics for real-time IoT data ingestion.', author: 'vessel-community', license: 'MIT', runtime: 'python', installed: false, icon_url: null },
+        { name: 'kafka-consumer', version: '0.8.0', type: StageType.COLLECT, description: 'Consume messages from Apache Kafka topics with consumer group management.', author: 'vessel-community', license: 'Apache-2.0', runtime: 'python', installed: false, icon_url: null },
+        { name: 'anomaly-detector', version: '1.0.0', type: StageType.ALGORITHM, description: 'Statistical anomaly detection with z-score, IQR, and modified z-score methods.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
+        { name: 'data-transformer', version: '1.0.0', type: StageType.ALGORITHM, description: 'Transform data between JSON, CSV, XML formats with configurable mapping rules.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
+        { name: 'dedup-filter', version: '1.0.0', type: StageType.ALGORITHM, description: 'Remove duplicate records based on configurable keys and time windows.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
+        { name: 'ml-classifier', version: '0.5.0', type: StageType.ALGORITHM, description: 'Machine learning classification using scikit-learn models. Supports custom model loading.', author: 'vessel-community', license: 'MIT', runtime: 'python', installed: false, icon_url: null },
+        { name: 's3-uploader', version: '1.0.0', type: StageType.TRANSFER, description: 'Upload data to Amazon S3 with support for multipart upload, encryption, and compression.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
+        { name: 'database-writer', version: '1.0.0', type: StageType.TRANSFER, description: 'Write data to PostgreSQL, MySQL, or MSSQL with upsert and batch insert support.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: true, icon_url: null },
+        { name: 'webhook-sender', version: '1.0.0', type: StageType.TRANSFER, description: 'Send results to external HTTP webhook endpoints with retry and backoff.', author: 'vessel-core', license: 'Apache-2.0', runtime: 'python', installed: false, icon_url: null },
+        { name: 'elasticsearch-writer', version: '0.7.0', type: StageType.TRANSFER, description: 'Index documents into Elasticsearch with configurable mappings and bulk operations.', author: 'vessel-community', license: 'Apache-2.0', runtime: 'python', installed: false, icon_url: null },
       ]);
     } finally {
       setLoading(false);
@@ -62,10 +62,10 @@ export default function PluginMarketplacePage() {
     );
   }
 
-  const typeColor: Record<StepType, { bg: string; text: string; iconBg: string }> = {
-    [StepType.COLLECT]: { bg: 'bg-blue-50', text: 'text-blue-700', iconBg: 'bg-blue-500' },
-    [StepType.ALGORITHM]: { bg: 'bg-purple-50', text: 'text-purple-700', iconBg: 'bg-purple-500' },
-    [StepType.TRANSFER]: { bg: 'bg-emerald-50', text: 'text-emerald-700', iconBg: 'bg-emerald-500' },
+  const typeColor: Record<StageType, { bg: string; text: string; iconBg: string }> = {
+    [StageType.COLLECT]: { bg: 'bg-blue-50', text: 'text-blue-700', iconBg: 'bg-blue-500' },
+    [StageType.ALGORITHM]: { bg: 'bg-purple-50', text: 'text-purple-700', iconBg: 'bg-purple-500' },
+    [StageType.TRANSFER]: { bg: 'bg-emerald-50', text: 'text-emerald-700', iconBg: 'bg-emerald-500' },
   };
 
   const filteredPlugins = filter === 'all'
@@ -85,7 +85,7 @@ export default function PluginMarketplacePage() {
 
       {/* Filter Tabs */}
       <div className="flex gap-2">
-        {(['all', StepType.COLLECT, StepType.ALGORITHM, StepType.TRANSFER] as const).map((f) => (
+        {(['all', StageType.COLLECT, StageType.ALGORITHM, StageType.TRANSFER] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}

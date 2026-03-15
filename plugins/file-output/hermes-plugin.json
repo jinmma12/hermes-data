@@ -1,0 +1,19 @@
+{
+  "name": "file-output",
+  "version": "1.0.0",
+  "type": "transfer",
+  "description": "Writes processed data to files in JSON, CSV, or plain text format.",
+  "author": "hermes-core",
+  "license": "Apache-2.0",
+  "runtime": "python",
+  "entrypoint": "main.py",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "output_dir": { "type": "string", "title": "Output Directory" },
+      "format": { "type": "string", "enum": ["json", "csv", "text"], "default": "json" },
+      "filename_template": { "type": "string", "title": "Filename Template", "default": "output_{timestamp}.{format}" }
+    },
+    "required": ["output_dir"]
+  }
+}

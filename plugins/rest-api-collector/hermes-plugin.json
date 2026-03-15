@@ -1,0 +1,23 @@
+{
+  "name": "rest-api-collector",
+  "version": "1.0.0",
+  "type": "collector",
+  "description": "Polls REST API endpoints for new data. Supports GET/POST, authentication, pagination.",
+  "author": "hermes-core",
+  "license": "Apache-2.0",
+  "runtime": "python",
+  "entrypoint": "main.py",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "url": { "type": "string", "title": "API URL" },
+      "method": { "type": "string", "enum": ["GET", "POST"], "default": "GET" },
+      "headers": { "type": "object", "title": "HTTP Headers", "default": {} },
+      "auth_type": { "type": "string", "enum": ["none", "bearer", "basic", "api_key"], "default": "none" },
+      "auth_token": { "type": "string", "title": "Auth Token" },
+      "interval_seconds": { "type": "integer", "default": 60 },
+      "timeout_seconds": { "type": "integer", "default": 30 }
+    },
+    "required": ["url"]
+  }
+}

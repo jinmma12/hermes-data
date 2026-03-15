@@ -1,0 +1,19 @@
+{
+  "name": "file-watcher",
+  "version": "1.0.0",
+  "type": "collector",
+  "description": "Monitors directories for new or modified files. Supports glob patterns.",
+  "author": "hermes-core",
+  "license": "Apache-2.0",
+  "runtime": "python",
+  "entrypoint": "main.py",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "watch_path": { "type": "string", "title": "Watch Directory" },
+      "pattern": { "type": "string", "title": "File Pattern", "default": "*" },
+      "recursive": { "type": "boolean", "default": false }
+    },
+    "required": ["watch_path"]
+  }
+}

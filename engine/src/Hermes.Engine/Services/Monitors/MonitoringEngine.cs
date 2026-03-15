@@ -158,6 +158,10 @@ public class MonitoringEngine : IMonitoringEngine
                 headers: config.TryGetProperty("headers", out var h)
                     ? JsonSerializer.Deserialize<Dictionary<string, string>>(h.GetRawText())
                     : null),
+            MonitoringType.EventStream => new KafkaMonitor(
+                bootstrapServers: config.TryGetProperty("bootstrap_servers", out var bs) ? bs.GetString()! : "localhost:9092",
+                topic: config.TryGetProperty("topic", out var t) ? t.GetString()! : "hermes-events",
+                groupId: config.TryGetProperty("group_id", out var g) ? g.GetString()! : "hermes-engine"),
             _ => throw new NotSupportedException($"Monitoring type not supported: {pipeline.MonitoringType}")
         };
     }

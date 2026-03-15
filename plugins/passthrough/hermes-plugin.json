@@ -1,0 +1,16 @@
+{
+  "name": "passthrough",
+  "version": "1.0.0",
+  "type": "algorithm",
+  "description": "Passes data through without modification. Useful for testing and debugging.",
+  "author": "hermes-core",
+  "license": "Apache-2.0",
+  "runtime": "python",
+  "entrypoint": "main.py",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "log_data": { "type": "boolean", "title": "Log Input Data", "default": false }
+    }
+  }
+}

@@ -1,6 +1,6 @@
-# Vessel - Data Collection & Algorithm Execution Design
+# Hermes - Data Collection & Algorithm Execution Design
 
-> 이 문서는 Vessel의 실제 운영 시나리오를 다룬다.
+> 이 문서는 Hermes의 실제 운영 시나리오를 다룬다.
 > "데이터가 어떤 형태인지 모르는 상태에서, 어떻게 수집하고, 어떤 알고리즘에 어떤 파라미터로 분석할지"를
 > 설정 가능하게 만드는 구조.
 
@@ -68,7 +68,7 @@ dataDescriptor:
     kafka:
       brokers: ["kafka:9092"]
       topic: "equipment.events"
-      groupId: "vessel-collector"
+      groupId: "hermes-collector"
 
   # 데이터 포맷
   format:
@@ -485,11 +485,11 @@ algorithmRecipe:
 │    "timestamp": "2026-03-15T10:15:00Z"                          │
 │  }                                                                │
 │    ↓                                                              │
-│  Vessel MonitoringEngine (Kafka consumer)                        │
+│  Hermes MonitoringEngine (Kafka consumer)                        │
 │    ↓                                                              │
 │  ConditionEvaluator: event.event == "DATA_READY" ✓               │
 │    ↓                                                              │
-│  WorkItem 생성: source_key = "EQUIP_A/run_001"                   │
+│  Job 생성: source_key = "EQUIP_A/run_001"                   │
 └──────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -580,9 +580,9 @@ algorithmRecipe:
                               │
                               ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│  RESULT: WorkItem #1001 추적 정보                                │
+│  RESULT: Job #1001 추적 정보                                │
 │                                                                   │
-│  WorkItem Explorer에서 확인 가능:                                 │
+│  Job Explorer에서 확인 가능:                                 │
 │                                                                   │
 │  Execution #1 (INITIAL)                                           │
 │    ├── COLLECT   ✅ 1.2s  "3 files, 30002 records"               │
@@ -683,26 +683,26 @@ COLLECT ─┬→ ALGORITHM(이상치) → TRANSFER(DB)
 ```yaml
 pipelineSteps:
   - stepOrder: 1
-    stepType: COLLECT
+    stageType: COLLECT
     ref: "file-collector-equip-a"
 
   - stepOrder: 2
-    stepType: ALGORITHM
+    stageType: ALGORITHM
     ref: "null-remover"              # 전처리: null 제거
     recipe: { removeColumns: ["unused_col"], fillStrategy: "interpolate" }
 
   - stepOrder: 3
-    stepType: ALGORITHM
+    stageType: ALGORITHM
     ref: "anomaly-zscore"            # 분석: 이상치 탐지
     recipe: { targetColumn: "pressure", threshold: 3.5 }
 
   - stepOrder: 4
-    stepType: ALGORITHM
+    stageType: ALGORITHM
     ref: "severity-classifier"       # 분류: 심각도 분류
     recipe: { levels: ["INFO", "WARN", "CRITICAL"], rules: [...] }
 
   - stepOrder: 5
-    stepType: TRANSFER
+    stageType: TRANSFER
     ref: "db-insert-results"
 ```
 
@@ -714,7 +714,7 @@ pipelineSteps:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  Step 간 데이터 전달: WorkItemContext                         │
+│  Step 간 데이터 전달: JobContext                         │
 │                                                               │
 │  COLLECT output:                                              │
 │    {                                                          │
@@ -754,7 +754,7 @@ pipelineSteps:
 {
   "dataRef": {
     "type": "FILE",
-    "path": "/tmp/vessel/workitems/1001/step_1_output.parquet",
+    "path": "/tmp/hermes/workitems/1001/step_1_output.parquet",
     "format": "parquet",
     "size": 52428800,
     "recordCount": 500000
@@ -773,9 +773,9 @@ pipelineSteps:
 | `AlgorithmDefinition.inputSchema` | Algorithm 파라미터 전체 정의 |
 | `CollectorInstance.config_json` | 실제 DataDescriptor 값 (Recipe) |
 | `AlgorithmInstance.config_json` | 실제 Algorithm 파라미터 값 (Recipe) |
-| `PipelineStep` | Step 간 데이터 전달 규칙 |
+| `PipelineStage` | Step 간 데이터 전달 규칙 |
 | `Plugin Protocol` | CONFIGURE 메시지에 DataDescriptor 포함 |
 | `Web UI - Recipe Editor` | JSON Schema → auto-generated form |
 | `Web UI - Pipeline Designer` | 각 노드 클릭 → Recipe Editor |
 | `ExecutionSnapshot` | 실행 당시의 DataDescriptor + Recipe 보존 |
-| `WorkItem Explorer` | Step 별 input/output 미리보기 |
+| `Job Explorer` | Step 별 input/output 미리보기 |

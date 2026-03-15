@@ -2,7 +2,7 @@
 // Enums
 // ============================================================
 
-export enum StepType {
+export enum StageType {
   COLLECT = 'COLLECT',
   ALGORITHM = 'ALGORITHM',
   TRANSFER = 'TRANSFER',
@@ -45,7 +45,7 @@ export enum ActivationStatus {
   ERROR = 'ERROR',
 }
 
-export enum WorkItemStatus {
+export enum JobStatus {
   DETECTED = 'DETECTED',
   QUEUED = 'QUEUED',
   PROCESSING = 'PROCESSING',
@@ -60,7 +60,7 @@ export enum ExecutionStatus {
   CANCELLED = 'CANCELLED',
 }
 
-export enum StepExecutionStatus {
+export enum StageExecutionStatus {
   RUNNING = 'RUNNING',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
@@ -218,15 +218,15 @@ export interface PipelineInstance {
   status: PipelineStatus;
   created_at: string;
   updated_at: string;
-  steps?: PipelineStep[];
+  stages?: PipelineStage[];
   activation?: PipelineActivation | null;
 }
 
-export interface PipelineStep {
+export interface PipelineStage {
   id: number;
   pipeline_instance_id: number;
-  step_order: number;
-  step_type: StepType;
+  stage_order: number;
+  stage_type: StageType;
   ref_type: string;
   ref_id: number;
   ref_name?: string;
@@ -251,14 +251,14 @@ export interface PipelineActivation {
   last_polled_at: string | null;
   error_message: string | null;
   worker_id: string | null;
-  work_item_count?: number;
+  job_count?: number;
 }
 
 // ============================================================
 // Execution Layer
 // ============================================================
 
-export interface WorkItem {
+export interface Job {
   id: number;
   pipeline_activation_id: number;
   pipeline_instance_id: number;
@@ -268,15 +268,15 @@ export interface WorkItem {
   source_metadata: Record<string, unknown>;
   dedup_key: string;
   detected_at: string;
-  status: WorkItemStatus;
+  status: JobStatus;
   current_execution_id: number | null;
   execution_count: number;
   last_completed_at: string | null;
 }
 
-export interface WorkItemExecution {
+export interface JobExecution {
   id: number;
-  work_item_id: number;
+  job_id: number;
   execution_no: number;
   trigger_type: TriggerType;
   trigger_source: string;
@@ -285,17 +285,17 @@ export interface WorkItemExecution {
   ended_at: string | null;
   duration_ms: number | null;
   reprocess_request_id: number | null;
-  steps?: WorkItemStepExecution[];
+  stages?: JobStageExecution[];
   snapshot?: ExecutionSnapshot;
 }
 
-export interface WorkItemStepExecution {
+export interface JobStageExecution {
   id: number;
   execution_id: number;
-  pipeline_step_id: number;
-  step_type: StepType;
-  step_order: number;
-  status: StepExecutionStatus;
+  pipeline_stage_id: number;
+  stage_type: StageType;
+  stage_order: number;
+  status: StageExecutionStatus;
   started_at: string | null;
   ended_at: string | null;
   duration_ms: number | null;
@@ -323,11 +323,11 @@ export interface ExecutionSnapshot {
 
 export interface ReprocessRequest {
   id: number;
-  work_item_id: number;
+  job_id: number;
   requested_by: string;
   requested_at: string;
   reason: string;
-  start_from_step: number | null;
+  start_from_stage: number | null;
   use_latest_recipe: boolean;
   status: ReprocessStatus;
   approved_by: string | null;
@@ -336,12 +336,12 @@ export interface ReprocessRequest {
 
 export interface ReprocessPayload {
   reason: string;
-  start_from_step?: number;
+  start_from_stage?: number;
   use_latest_recipe?: boolean;
 }
 
 export interface BulkReprocessPayload {
-  work_item_ids: number[];
+  job_ids: number[];
   reason: string;
 }
 
@@ -352,7 +352,7 @@ export interface BulkReprocessPayload {
 export interface ExecutionEventLog {
   id: number;
   execution_id: number;
-  step_execution_id: number | null;
+  stage_execution_id: number | null;
   event_type: EventType;
   event_code: string;
   message: string;
@@ -400,7 +400,7 @@ export interface MonitorStats {
 export interface PluginInfo {
   name: string;
   version: string;
-  type: StepType;
+  type: StageType;
   description: string;
   author: string;
   license: string;

@@ -1,5 +1,5 @@
 -- ============================================================================
--- Vessel Data Processing Platform - PostgreSQL Schema
+-- Hermes Data Processing Platform - PostgreSQL Schema
 -- Version: 1.0.0
 -- ============================================================================
 -- Layers:

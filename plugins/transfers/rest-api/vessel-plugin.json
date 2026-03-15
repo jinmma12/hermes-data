@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "TRANSFER",
   "description": "Sends processed data to a REST API endpoint via HTTP POST/PUT/PATCH.",
-  "author": "vessel-core",
+  "author": "hermes-core",
   "license": "Apache-2.0",
   "runtime": "python",
   "entrypoint": "main.py",

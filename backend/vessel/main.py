@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint for Vessel."""
+"""FastAPI application entrypoint for Hermes."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     global _monitoring_worker, _processing_worker
 
     # Startup
-    logger.info("Vessel starting up...")
+    logger.info("Hermes starting up...")
 
     # Initialize database tables
     async with async_engine.begin() as conn:
@@ -60,20 +60,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # Shutdown
-    logger.info("Vessel shutting down...")
+    logger.info("Hermes shutting down...")
     if _monitoring_worker:
         await _monitoring_worker.stop()
     if _processing_worker:
         await _processing_worker.stop()
     await async_engine.dispose()
-    logger.info("Vessel shutdown complete")
+    logger.info("Hermes shutdown complete")
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
-        title="Vessel",
-        description="Lightweight data processing platform with per-item tracking",
+        title="Hermes",
+        description="Lightweight data processing platform with per-job tracking",
         version="0.1.0",
         lifespan=lifespan,
     )
@@ -98,8 +98,8 @@ def create_app() -> FastAPI:
     @app.get("/")
     async def root() -> dict[str, str]:
         return {
-            "name": "Vessel",
-            "tagline": "Carry your data. Track every item.",
+            "name": "Hermes",
+            "tagline": "The messenger for your data.",
             "version": "0.1.0",
             "docs": "/docs",
         }

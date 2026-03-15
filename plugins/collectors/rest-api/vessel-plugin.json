@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "COLLECTOR",
   "description": "Collects data from REST APIs with configurable authentication, headers, and polling interval.",
-  "author": "vessel-core",
+  "author": "hermes-core",
   "license": "Apache-2.0",
   "runtime": "python",
   "entrypoint": "main.py",

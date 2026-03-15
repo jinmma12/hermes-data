@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "TRANSFER",
   "description": "Writes processed data to files in various formats (JSON, CSV, or raw text).",
-  "author": "vessel-core",
+  "author": "hermes-core",
   "license": "Apache-2.0",
   "runtime": "python",
   "entrypoint": "main.py",

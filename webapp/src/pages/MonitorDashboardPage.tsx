@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { PipelineActivation, WorkItem, MonitorStats } from '../types';
-import { ActivationStatus, WorkItemStatus } from '../types';
+import type { PipelineActivation, Job, MonitorStats } from '../types';
+import { ActivationStatus, JobStatus } from '../types';
 import { monitor } from '../api/client';
 import StatusBadge from '../components/common/StatusBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -19,7 +19,7 @@ function timeAgo(dateStr: string): string {
 export default function MonitorDashboardPage() {
   const [stats, setStats] = useState<MonitorStats | null>(null);
   const [activations, setActivations] = useState<PipelineActivation[]>([]);
-  const [recentItems, setRecentItems] = useState<WorkItem[]>([]);
+  const [recentItems, setRecentItems] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function MonitorDashboardPage() {
       const [s, a, w] = await Promise.all([
         monitor.getStats(),
         monitor.getActiveActivations(),
-        monitor.getRecentWorkItems(10),
+        monitor.getRecentJobs(10),
       ]);
       setStats(s);
       setActivations(a);
@@ -59,7 +59,7 @@ export default function MonitorDashboardPage() {
           last_polled_at: new Date(Date.now() - 5000).toISOString(),
           error_message: null,
           worker_id: 'worker-1',
-          work_item_count: 1247,
+          job_count: 1247,
         },
         {
           id: 2, pipeline_instance_id: 2,
@@ -71,7 +71,7 @@ export default function MonitorDashboardPage() {
           last_polled_at: new Date(Date.now() - 10000).toISOString(),
           error_message: null,
           worker_id: 'worker-1',
-          work_item_count: 892,
+          job_count: 892,
         },
         {
           id: 3, pipeline_instance_id: 3,
@@ -83,7 +83,7 @@ export default function MonitorDashboardPage() {
           last_polled_at: null,
           error_message: null,
           worker_id: null,
-          work_item_count: 0,
+          job_count: 0,
         },
         {
           id: 4, pipeline_instance_id: 4,
@@ -95,15 +95,15 @@ export default function MonitorDashboardPage() {
           last_polled_at: null,
           error_message: 'Connection timeout after 3 retries',
           worker_id: 'worker-2',
-          work_item_count: 56,
+          job_count: 56,
         },
       ]);
       setRecentItems([
-        { id: 1003, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as any, source_key: 'order_batch_0315_003', source_metadata: {}, dedup_key: 'ob003', detected_at: '2026-03-15T14:30:00Z', status: WorkItemStatus.COMPLETED, current_execution_id: 1003, execution_count: 1, last_completed_at: '2026-03-15T14:30:02Z' },
-        { id: 1002, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as any, source_key: 'order_batch_0315_002', source_metadata: {}, dedup_key: 'ob002', detected_at: '2026-03-15T14:15:00Z', status: WorkItemStatus.FAILED, current_execution_id: 1002, execution_count: 1, last_completed_at: null },
-        { id: 1001, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as any, source_key: 'order_batch_0315_001', source_metadata: {}, dedup_key: 'ob001', detected_at: '2026-03-15T14:00:00Z', status: WorkItemStatus.COMPLETED, current_execution_id: 1001, execution_count: 1, last_completed_at: '2026-03-15T14:00:02Z' },
-        { id: 1000, pipeline_activation_id: 2, pipeline_instance_id: 2, pipeline_name: 'Equipment File Collection', source_type: 'FILE' as any, source_key: 'equipment_A_20260315.csv', source_metadata: {}, dedup_key: 'eqa315', detected_at: '2026-03-15T13:45:00Z', status: WorkItemStatus.COMPLETED, current_execution_id: 1000, execution_count: 1, last_completed_at: '2026-03-15T13:45:05Z' },
-        { id: 999, pipeline_activation_id: 2, pipeline_instance_id: 2, pipeline_name: 'Equipment File Collection', source_type: 'FILE' as any, source_key: 'equipment_B_20260315.csv', source_metadata: {}, dedup_key: 'eqb315', detected_at: '2026-03-15T13:30:00Z', status: WorkItemStatus.PROCESSING, current_execution_id: 999, execution_count: 1, last_completed_at: null },
+        { id: 1003, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as any, source_key: 'order_batch_0315_003', source_metadata: {}, dedup_key: 'ob003', detected_at: '2026-03-15T14:30:00Z', status: JobStatus.COMPLETED, current_execution_id: 1003, execution_count: 1, last_completed_at: '2026-03-15T14:30:02Z' },
+        { id: 1002, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as any, source_key: 'order_batch_0315_002', source_metadata: {}, dedup_key: 'ob002', detected_at: '2026-03-15T14:15:00Z', status: JobStatus.FAILED, current_execution_id: 1002, execution_count: 1, last_completed_at: null },
+        { id: 1001, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as any, source_key: 'order_batch_0315_001', source_metadata: {}, dedup_key: 'ob001', detected_at: '2026-03-15T14:00:00Z', status: JobStatus.COMPLETED, current_execution_id: 1001, execution_count: 1, last_completed_at: '2026-03-15T14:00:02Z' },
+        { id: 1000, pipeline_activation_id: 2, pipeline_instance_id: 2, pipeline_name: 'Equipment File Collection', source_type: 'FILE' as any, source_key: 'equipment_A_20260315.csv', source_metadata: {}, dedup_key: 'eqa315', detected_at: '2026-03-15T13:45:00Z', status: JobStatus.COMPLETED, current_execution_id: 1000, execution_count: 1, last_completed_at: '2026-03-15T13:45:05Z' },
+        { id: 999, pipeline_activation_id: 2, pipeline_instance_id: 2, pipeline_name: 'Equipment File Collection', source_type: 'FILE' as any, source_key: 'equipment_B_20260315.csv', source_metadata: {}, dedup_key: 'eqb315', detected_at: '2026-03-15T13:30:00Z', status: JobStatus.PROCESSING, current_execution_id: 999, execution_count: 1, last_completed_at: null },
       ]);
     } finally {
       setLoading(false);
@@ -125,11 +125,11 @@ export default function MonitorDashboardPage() {
     }
   };
 
-  const workItemStatusIcon = (status: WorkItemStatus) => {
+  const jobStatusIcon = (status: JobStatus) => {
     switch (status) {
-      case WorkItemStatus.COMPLETED: return <span className="text-emerald-500">OK</span>;
-      case WorkItemStatus.FAILED: return <span className="text-red-500">FAIL</span>;
-      case WorkItemStatus.PROCESSING: return <span className="text-yellow-500">...</span>;
+      case JobStatus.COMPLETED: return <span className="text-emerald-500">OK</span>;
+      case JobStatus.FAILED: return <span className="text-red-500">FAIL</span>;
+      case JobStatus.PROCESSING: return <span className="text-yellow-500">...</span>;
       default: return <span className="text-slate-400">--</span>;
     }
   };
@@ -138,7 +138,7 @@ export default function MonitorDashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Monitor Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-500">Real-time pipeline status and work items</p>
+        <p className="mt-1 text-sm text-slate-500">Real-time pipeline status and jobs</p>
       </div>
 
       {/* Stats Cards */}
@@ -193,7 +193,7 @@ export default function MonitorDashboardPage() {
                   </span>
                 )}
                 <span className="min-w-[80px] text-right text-xs text-slate-500">
-                  {(activation.work_item_count || 0).toLocaleString()} items
+                  {(activation.job_count || 0).toLocaleString()} items
                 </span>
               </div>
             </div>
@@ -201,11 +201,11 @@ export default function MonitorDashboardPage() {
         </div>
       </div>
 
-      {/* Recent Work Items */}
+      {/* Recent Jobs */}
       <div className="card">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <h2 className="text-sm font-semibold text-slate-900">Recent Work Items</h2>
-          <Link to="/work-items" className="text-xs font-medium text-vessel-600 hover:text-vessel-700">
+          <h2 className="text-sm font-semibold text-slate-900">Recent Jobs</h2>
+          <Link to="/jobs" className="text-xs font-medium text-hermes-600 hover:text-hermes-700">
             View All &rarr;
           </Link>
         </div>
@@ -213,11 +213,11 @@ export default function MonitorDashboardPage() {
           {recentItems.map((item) => (
             <Link
               key={item.id}
-              to={`/work-items/${item.id}`}
+              to={`/jobs/${item.id}`}
               className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-slate-50"
             >
               <div className="flex items-center gap-3">
-                {workItemStatusIcon(item.status)}
+                {jobStatusIcon(item.status)}
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-slate-500">#{item.id}</span>

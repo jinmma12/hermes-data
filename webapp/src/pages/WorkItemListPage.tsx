@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { WorkItem } from '../types';
-import { WorkItemStatus } from '../types';
-import { workItems, type WorkItemFilters } from '../api/client';
+import type { Job } from '../types';
+import { JobStatus } from '../types';
+import { jobs, type JobFilters } from '../api/client';
 import StatusBadge from '../components/common/StatusBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import EmptyState from '../components/common/EmptyState';
 
-export default function WorkItemListPage() {
-  const [items, setItems] = useState<WorkItem[]>([]);
+export default function JobListPage() {
+  const [items, setItems] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [filters, setFilters] = useState<WorkItemFilters>({
+  const [filters, setFilters] = useState<JobFilters>({
     page: 1,
     page_size: 20,
   });
@@ -24,20 +24,20 @@ export default function WorkItemListPage() {
   async function loadItems() {
     try {
       setLoading(true);
-      const data = await workItems.list(filters);
+      const data = await jobs.list(filters);
       setItems(data.items);
       setTotalCount(data.total);
     } catch {
       // Demo data
-      const demoItems: WorkItem[] = [
-        { id: 1005, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as WorkItem['source_type'], source_key: 'order_batch_0315_005', source_metadata: {}, dedup_key: 'ob005', detected_at: '2026-03-15T15:00:00Z', status: WorkItemStatus.PROCESSING, current_execution_id: 1005, execution_count: 1, last_completed_at: null },
-        { id: 1004, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as WorkItem['source_type'], source_key: 'order_batch_0315_004', source_metadata: {}, dedup_key: 'ob004', detected_at: '2026-03-15T14:45:00Z', status: WorkItemStatus.COMPLETED, current_execution_id: 1004, execution_count: 1, last_completed_at: '2026-03-15T14:45:02Z' },
-        { id: 1003, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as WorkItem['source_type'], source_key: 'order_batch_0315_003', source_metadata: {}, dedup_key: 'ob003', detected_at: '2026-03-15T14:30:00Z', status: WorkItemStatus.COMPLETED, current_execution_id: 1003, execution_count: 1, last_completed_at: '2026-03-15T14:30:02Z' },
-        { id: 1002, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as WorkItem['source_type'], source_key: 'order_batch_0315_002', source_metadata: {}, dedup_key: 'ob002', detected_at: '2026-03-15T14:15:00Z', status: WorkItemStatus.FAILED, current_execution_id: 1002, execution_count: 1, last_completed_at: null },
-        { id: 1001, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as WorkItem['source_type'], source_key: 'order_batch_0315_001', source_metadata: {}, dedup_key: 'ob001', detected_at: '2026-03-15T14:00:00Z', status: WorkItemStatus.COMPLETED, current_execution_id: 1001, execution_count: 1, last_completed_at: '2026-03-15T14:00:02Z' },
-        { id: 1000, pipeline_activation_id: 2, pipeline_instance_id: 2, pipeline_name: 'Equipment File Collection', source_type: 'FILE' as WorkItem['source_type'], source_key: 'equipment_A_20260315.csv', source_metadata: { size: 1024000 }, dedup_key: 'eqa315', detected_at: '2026-03-15T13:45:00Z', status: WorkItemStatus.COMPLETED, current_execution_id: 1000, execution_count: 1, last_completed_at: '2026-03-15T13:45:05Z' },
-        { id: 999, pipeline_activation_id: 2, pipeline_instance_id: 2, pipeline_name: 'Equipment File Collection', source_type: 'FILE' as WorkItem['source_type'], source_key: 'equipment_B_20260315.csv', source_metadata: { size: 2048000 }, dedup_key: 'eqb315', detected_at: '2026-03-15T13:30:00Z', status: WorkItemStatus.FAILED, current_execution_id: 999, execution_count: 2, last_completed_at: null },
-        { id: 998, pipeline_activation_id: 2, pipeline_instance_id: 2, pipeline_name: 'Equipment File Collection', source_type: 'FILE' as WorkItem['source_type'], source_key: 'equipment_C_20260314.csv', source_metadata: { size: 512000 }, dedup_key: 'eqc314', detected_at: '2026-03-14T16:00:00Z', status: WorkItemStatus.COMPLETED, current_execution_id: 998, execution_count: 1, last_completed_at: '2026-03-14T16:00:03Z' },
+      const demoItems: Job[] = [
+        { id: 1005, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as Job['source_type'], source_key: 'order_batch_0315_005', source_metadata: {}, dedup_key: 'ob005', detected_at: '2026-03-15T15:00:00Z', status: JobStatus.PROCESSING, current_execution_id: 1005, execution_count: 1, last_completed_at: null },
+        { id: 1004, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as Job['source_type'], source_key: 'order_batch_0315_004', source_metadata: {}, dedup_key: 'ob004', detected_at: '2026-03-15T14:45:00Z', status: JobStatus.COMPLETED, current_execution_id: 1004, execution_count: 1, last_completed_at: '2026-03-15T14:45:02Z' },
+        { id: 1003, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as Job['source_type'], source_key: 'order_batch_0315_003', source_metadata: {}, dedup_key: 'ob003', detected_at: '2026-03-15T14:30:00Z', status: JobStatus.COMPLETED, current_execution_id: 1003, execution_count: 1, last_completed_at: '2026-03-15T14:30:02Z' },
+        { id: 1002, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as Job['source_type'], source_key: 'order_batch_0315_002', source_metadata: {}, dedup_key: 'ob002', detected_at: '2026-03-15T14:15:00Z', status: JobStatus.FAILED, current_execution_id: 1002, execution_count: 1, last_completed_at: null },
+        { id: 1001, pipeline_activation_id: 1, pipeline_instance_id: 1, pipeline_name: 'Order Monitoring', source_type: 'API_RESPONSE' as Job['source_type'], source_key: 'order_batch_0315_001', source_metadata: {}, dedup_key: 'ob001', detected_at: '2026-03-15T14:00:00Z', status: JobStatus.COMPLETED, current_execution_id: 1001, execution_count: 1, last_completed_at: '2026-03-15T14:00:02Z' },
+        { id: 1000, pipeline_activation_id: 2, pipeline_instance_id: 2, pipeline_name: 'Equipment File Collection', source_type: 'FILE' as Job['source_type'], source_key: 'equipment_A_20260315.csv', source_metadata: { size: 1024000 }, dedup_key: 'eqa315', detected_at: '2026-03-15T13:45:00Z', status: JobStatus.COMPLETED, current_execution_id: 1000, execution_count: 1, last_completed_at: '2026-03-15T13:45:05Z' },
+        { id: 999, pipeline_activation_id: 2, pipeline_instance_id: 2, pipeline_name: 'Equipment File Collection', source_type: 'FILE' as Job['source_type'], source_key: 'equipment_B_20260315.csv', source_metadata: { size: 2048000 }, dedup_key: 'eqb315', detected_at: '2026-03-15T13:30:00Z', status: JobStatus.FAILED, current_execution_id: 999, execution_count: 2, last_completed_at: null },
+        { id: 998, pipeline_activation_id: 2, pipeline_instance_id: 2, pipeline_name: 'Equipment File Collection', source_type: 'FILE' as Job['source_type'], source_key: 'equipment_C_20260314.csv', source_metadata: { size: 512000 }, dedup_key: 'eqc314', detected_at: '2026-03-14T16:00:00Z', status: JobStatus.COMPLETED, current_execution_id: 998, execution_count: 1, last_completed_at: '2026-03-14T16:00:03Z' },
       ];
       setItems(demoItems);
       setTotalCount(demoItems.length);
@@ -68,8 +68,8 @@ export default function WorkItemListPage() {
     const reason = prompt('Enter reason for reprocessing:');
     if (!reason) return;
     try {
-      await workItems.bulkReprocess({
-        work_item_ids: Array.from(selectedIds),
+      await jobs.bulkReprocess({
+        job_ids: Array.from(selectedIds),
         reason,
       });
       alert(`Reprocess requested for ${selectedIds.size} items`);
@@ -80,14 +80,14 @@ export default function WorkItemListPage() {
     }
   }
 
-  if (loading) return <LoadingSpinner message="Loading work items..." />;
+  if (loading) return <LoadingSpinner message="Loading jobs..." />;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Work Items</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Jobs</h1>
           <p className="mt-1 text-sm text-slate-500">
             {totalCount.toLocaleString()} total items across all pipelines
           </p>
@@ -110,7 +110,7 @@ export default function WorkItemListPage() {
           className="input w-40"
         >
           <option value="">All Status</option>
-          {Object.values(WorkItemStatus).map((s) => (
+          {Object.values(JobStatus).map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
@@ -138,7 +138,7 @@ export default function WorkItemListPage() {
 
       {/* Table */}
       {items.length === 0 ? (
-        <EmptyState title="No work items found" description="Adjust your filters or wait for new items to be detected." />
+        <EmptyState title="No jobs found" description="Adjust your filters or wait for new items to be detected." />
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full">
@@ -172,7 +172,7 @@ export default function WorkItemListPage() {
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <Link to={`/work-items/${item.id}`} className="text-sm font-medium text-vessel-600 hover:text-vessel-700">
+                    <Link to={`/jobs/${item.id}`} className="text-sm font-medium text-hermes-600 hover:text-hermes-700">
                       #{item.id}
                     </Link>
                   </td>

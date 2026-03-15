@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "vessel-backend"
+name = "hermes-backend"
 version = "0.1.0"
-description = "Vessel data processing platform - API backend"
+description = "Hermes data processing platform - API backend"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [

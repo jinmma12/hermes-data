@@ -18,8 +18,8 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import { StepType, PipelineStatus } from '../types';
-import type { PipelineInstance, PipelineStep } from '../types';
+import { StageType, PipelineStatus } from '../types';
+import type { PipelineInstance, PipelineStage } from '../types';
 import { pipelines } from '../api/client';
 import RecipeEditorPanel from './RecipeEditorPanel';
 import StatusBadge from '../components/common/StatusBadge';
@@ -29,19 +29,19 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 // Custom Node Components
 // ============================================================
 
-interface StepNodeData {
+interface StageNodeData {
   label: string;
-  stepType: StepType;
+  stageType: StageType;
   description: string;
   instanceName: string;
   isEnabled: boolean;
-  stepId: number;
+  stageId: number;
   refId: number;
-  onOpenRecipe: (stepId: number, refId: number, stepType: StepType) => void;
+  onOpenRecipe: (stageId: number, refId: number, stageType: StageType) => void;
   [key: string]: unknown;
 }
 
-function CollectNode({ data }: { data: StepNodeData }) {
+function CollectNode({ data }: { data: StageNodeData }) {
   return (
     <div className={`w-56 rounded-xl border-2 bg-white shadow-md transition-all hover:shadow-lg ${
       data.isEnabled ? 'border-blue-300' : 'border-slate-200 opacity-60'
@@ -63,7 +63,7 @@ function CollectNode({ data }: { data: StepNodeData }) {
       <div className="px-4 py-3">
         <p className="text-[11px] text-slate-500">{data.description}</p>
         <button
-          onClick={() => data.onOpenRecipe(data.stepId, data.refId, data.stepType)}
+          onClick={() => data.onOpenRecipe(data.stageId, data.refId, data.stageType)}
           className="mt-2 w-full rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[11px] font-medium text-blue-700 transition-colors hover:bg-blue-100"
         >
           Edit Recipe
@@ -74,7 +74,7 @@ function CollectNode({ data }: { data: StepNodeData }) {
   );
 }
 
-function AlgorithmNode({ data }: { data: StepNodeData }) {
+function AlgorithmNode({ data }: { data: StageNodeData }) {
   return (
     <div className={`w-56 rounded-xl border-2 bg-white shadow-md transition-all hover:shadow-lg ${
       data.isEnabled ? 'border-purple-300' : 'border-slate-200 opacity-60'
@@ -96,7 +96,7 @@ function AlgorithmNode({ data }: { data: StepNodeData }) {
       <div className="px-4 py-3">
         <p className="text-[11px] text-slate-500">{data.description}</p>
         <button
-          onClick={() => data.onOpenRecipe(data.stepId, data.refId, data.stepType)}
+          onClick={() => data.onOpenRecipe(data.stageId, data.refId, data.stageType)}
           className="mt-2 w-full rounded-lg border border-purple-200 bg-purple-50 px-2 py-1.5 text-[11px] font-medium text-purple-700 transition-colors hover:bg-purple-100"
         >
           Edit Recipe
@@ -107,7 +107,7 @@ function AlgorithmNode({ data }: { data: StepNodeData }) {
   );
 }
 
-function TransferNode({ data }: { data: StepNodeData }) {
+function TransferNode({ data }: { data: StageNodeData }) {
   return (
     <div className={`w-56 rounded-xl border-2 bg-white shadow-md transition-all hover:shadow-lg ${
       data.isEnabled ? 'border-emerald-300' : 'border-slate-200 opacity-60'
@@ -129,7 +129,7 @@ function TransferNode({ data }: { data: StepNodeData }) {
       <div className="px-4 py-3">
         <p className="text-[11px] text-slate-500">{data.description}</p>
         <button
-          onClick={() => data.onOpenRecipe(data.stepId, data.refId, data.stepType)}
+          onClick={() => data.onOpenRecipe(data.stageId, data.refId, data.stageType)}
           className="mt-2 w-full rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
         >
           Edit Recipe
@@ -151,9 +151,9 @@ export default function PipelineDesignerPage() {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [recipePanel, setRecipePanel] = useState<{
-    stepId: number;
+    stageId: number;
     refId: number;
-    stepType: StepType;
+    stageType: StageType;
   } | null>(null);
 
   const nodeTypes: NodeTypes = useMemo(
@@ -165,8 +165,8 @@ export default function PipelineDesignerPage() {
     []
   );
 
-  const handleOpenRecipe = useCallback((stepId: number, refId: number, stepType: StepType) => {
-    setRecipePanel({ stepId, refId, stepType });
+  const handleOpenRecipe = useCallback((stageId: number, refId: number, stageType: StageType) => {
+    setRecipePanel({ stageId, refId, stageType });
   }, []);
 
   useEffect(() => {
@@ -179,9 +179,9 @@ export default function PipelineDesignerPage() {
       if (id && id !== 'new') {
         const data = await pipelines.get(parseInt(id));
         setPipeline(data);
-        buildFlowFromSteps(data.steps || []);
+        buildFlowFromStages(data.stages || []);
       } else {
-        // New pipeline with demo steps
+        // New pipeline with demo stages
         loadDemoData();
       }
     } catch {
@@ -203,67 +203,67 @@ export default function PipelineDesignerPage() {
       updated_at: '2026-03-15T14:30:00Z',
     });
 
-    const demoSteps: PipelineStep[] = [
+    const demoStages: PipelineStage[] = [
       {
-        id: 1, pipeline_instance_id: 1, step_order: 1,
-        step_type: StepType.COLLECT, ref_type: 'COLLECTOR', ref_id: 1,
+        id: 1, pipeline_instance_id: 1, stage_order: 1,
+        stage_type: StageType.COLLECT, ref_type: 'COLLECTOR', ref_id: 1,
         ref_name: 'REST API Collector',
-        is_enabled: true, on_error: 'STOP' as PipelineStep['on_error'],
+        is_enabled: true, on_error: 'STOP' as PipelineStage['on_error'],
         retry_count: 3, retry_delay_seconds: 10,
       },
       {
-        id: 2, pipeline_instance_id: 1, step_order: 2,
-        step_type: StepType.ALGORITHM, ref_type: 'ALGORITHM', ref_id: 1,
+        id: 2, pipeline_instance_id: 1, stage_order: 2,
+        stage_type: StageType.ALGORITHM, ref_type: 'ALGORITHM', ref_id: 1,
         ref_name: 'Anomaly Detector',
-        is_enabled: true, on_error: 'STOP' as PipelineStep['on_error'],
+        is_enabled: true, on_error: 'STOP' as PipelineStage['on_error'],
         retry_count: 0, retry_delay_seconds: 0,
       },
       {
-        id: 3, pipeline_instance_id: 1, step_order: 3,
-        step_type: StepType.TRANSFER, ref_type: 'TRANSFER', ref_id: 1,
+        id: 3, pipeline_instance_id: 1, stage_order: 3,
+        stage_type: StageType.TRANSFER, ref_type: 'TRANSFER', ref_id: 1,
         ref_name: 'S3 Upload',
-        is_enabled: true, on_error: 'STOP' as PipelineStep['on_error'],
+        is_enabled: true, on_error: 'STOP' as PipelineStage['on_error'],
         retry_count: 2, retry_delay_seconds: 30,
       },
     ];
-    buildFlowFromSteps(demoSteps);
+    buildFlowFromStages(demoStages);
   }
 
-  function buildFlowFromSteps(steps: PipelineStep[]) {
+  function buildFlowFromStages(stages: PipelineStage[]) {
     const descriptions: Record<string, string> = {
       'REST API Collector': 'Polls REST API endpoint for new order batches',
       'Anomaly Detector': 'Applies z-score analysis to detect anomalies',
       'S3 Upload': 'Uploads processed results to Amazon S3 bucket',
     };
 
-    const nodeTypeMap: Record<StepType, string> = {
-      [StepType.COLLECT]: 'collect',
-      [StepType.ALGORITHM]: 'algorithm',
-      [StepType.TRANSFER]: 'transfer',
+    const nodeTypeMap: Record<StageType, string> = {
+      [StageType.COLLECT]: 'collect',
+      [StageType.ALGORITHM]: 'algorithm',
+      [StageType.TRANSFER]: 'transfer',
     };
 
-    const newNodes: Node[] = steps.map((step, idx) => ({
-      id: `step-${step.id}`,
-      type: nodeTypeMap[step.step_type],
+    const newNodes: Node[] = stages.map((stage, idx) => ({
+      id: `stage-${stage.id}`,
+      type: nodeTypeMap[stage.stage_type],
       position: { x: 80 + idx * 300, y: 150 },
       data: {
-        label: step.ref_name || `Step ${step.step_order}`,
-        stepType: step.step_type,
-        description: descriptions[step.ref_name || ''] || 'Configure this step',
-        instanceName: step.ref_name || '',
-        isEnabled: step.is_enabled,
-        stepId: step.id,
-        refId: step.ref_id,
+        label: stage.ref_name || `Stage ${stage.stage_order}`,
+        stageType: stage.stage_type,
+        description: descriptions[stage.ref_name || ''] || 'Configure this stage',
+        instanceName: stage.ref_name || '',
+        isEnabled: stage.is_enabled,
+        stageId: stage.id,
+        refId: stage.ref_id,
         onOpenRecipe: handleOpenRecipe,
       },
     }));
 
     const newEdges: Edge[] = [];
-    for (let i = 0; i < steps.length - 1; i++) {
+    for (let i = 0; i < stages.length - 1; i++) {
       newEdges.push({
-        id: `edge-${steps[i].id}-${steps[i + 1].id}`,
-        source: `step-${steps[i].id}`,
-        target: `step-${steps[i + 1].id}`,
+        id: `edge-${stages[i].id}-${stages[i + 1].id}`,
+        source: `stage-${stages[i].id}`,
+        target: `stage-${stages[i + 1].id}`,
         animated: true,
         style: { stroke: '#94a3b8', strokeWidth: 2 },
         markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
@@ -373,9 +373,9 @@ export default function PipelineDesignerPage() {
         {/* Recipe Editor Panel */}
         {recipePanel && (
           <RecipeEditorPanel
-            stepId={recipePanel.stepId}
+            stageId={recipePanel.stageId}
             refId={recipePanel.refId}
-            stepType={recipePanel.stepType}
+            stageType={recipePanel.stageType}
             onClose={() => setRecipePanel(null)}
           />
         )}

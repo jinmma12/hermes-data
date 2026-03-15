@@ -1,0 +1,565 @@
+// Hermes Plugin Protocol v2 — gRPC Service Definitions
+//
+// Replaces the stdin/stdout JSON-line protocol (protocol.py) with a proper
+// gRPC contract.  Every plugin (collector, algorithm, transfer) runs as a
+// gRPC server inside its own container or subprocess.  Hermes Core acts as
+// the client.
+//
+// Three services are defined:
+//   1. HermesPluginService  — implemented by each plugin container
+//   2. HermesControlService — implemented by Hermes Core, called by plugins
+//   3. HermesHealthService  — standard health probing (liveness / readiness)
+
+syntax = "proto3";
+
+package hermes.plugin.v1;
+
+option csharp_namespace = "Hermes.Plugin.V1";
+option go_package = "hermes/plugin/v1;pluginv1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+// The three plugin archetypes that Hermes supports.
+enum PluginType {
+  PLUGIN_TYPE_UNSPECIFIED = 0;
+  PLUGIN_TYPE_COLLECTOR   = 1;
+  PLUGIN_TYPE_ALGORITHM   = 2;
+  PLUGIN_TYPE_TRANSFER    = 3;
+}
+
+// Log severity levels emitted by a plugin during execution.
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_DEBUG       = 1;
+  LOG_LEVEL_INFO        = 2;
+  LOG_LEVEL_WARN        = 3;
+  LOG_LEVEL_ERROR       = 4;
+}
+
+// Stage type within a pipeline execution context.
+enum StageType {
+  STAGE_TYPE_UNSPECIFIED = 0;
+  STAGE_TYPE_COLLECT     = 1;
+  STAGE_TYPE_ALGORITHM   = 2;
+  STAGE_TYPE_TRANSFER    = 3;
+}
+
+// Error classification so the orchestrator knows whether to retry.
+enum ErrorSeverity {
+  ERROR_SEVERITY_UNSPECIFIED = 0;
+  ERROR_SEVERITY_TRANSIENT   = 1;  // network blip, timeout — safe to retry
+  ERROR_SEVERITY_PERMANENT   = 2;  // bad config, schema mismatch — do not retry
+  ERROR_SEVERITY_UNKNOWN     = 3;  // plugin does not know — let policy decide
+}
+
+// Data encoding used inside DataChunk.data bytes.
+enum DataEncoding {
+  DATA_ENCODING_UNSPECIFIED = 0;
+  DATA_ENCODING_JSON        = 1;
+  DATA_ENCODING_CSV         = 2;
+  DATA_ENCODING_PARQUET     = 3;
+  DATA_ENCODING_MSGPACK     = 4;
+  DATA_ENCODING_RAW_BYTES   = 5;
+}
+
+// Check status returned by the Check RPC.
+enum CheckStatus {
+  CHECK_STATUS_UNSPECIFIED    = 0;
+  CHECK_STATUS_SUCCEEDED     = 1;
+  CHECK_STATUS_FAILED        = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Service 1: HermesPluginService — implemented by each plugin
+// ---------------------------------------------------------------------------
+
+service HermesPluginService {
+
+  // Return the plugin's self-description: name, version, type, schemas.
+  // Called once on plugin discovery / registration.
+  rpc GetSpec(google.protobuf.Empty) returns (PluginSpec);
+
+  // Validate that the supplied configuration is correct and the plugin
+  // can reach its external dependencies (DB, API, filesystem, ...).
+  rpc Check(CheckRequest) returns (CheckResponse);
+
+  // Discover what data the plugin can produce or consume.
+  // For collectors this returns available streams / tables / file patterns.
+  // For algorithms this returns supported input/output schemas.
+  rpc Discover(DiscoverRequest) returns (DiscoverResponse);
+
+  // Execute the plugin with the given config and input data.
+  // Results stream back as a sequence of ExecuteResponse messages:
+  //   log*, (output | progress | heartbeat | state_checkpoint)*, (done | error)
+  rpc Execute(ExecuteRequest) returns (stream ExecuteResponse);
+
+  // Bidirectional streaming variant for large-data scenarios.
+  // The client pushes DataChunk messages while the plugin streams back
+  // ExecuteResponse messages.  Useful when input data is too large to
+  // fit in a single ExecuteRequest.
+  rpc ExecuteStream(stream DataChunk) returns (stream ExecuteResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Service 2: HermesControlService — implemented by Hermes Core
+// ---------------------------------------------------------------------------
+
+service HermesControlService {
+
+  // Plugins call this to push custom metrics (e.g. records/sec, error rate).
+  rpc ReportMetrics(MetricsReport) returns (google.protobuf.Empty);
+
+  // Plugins call this to resolve secrets from the Hermes vault instead of
+  // receiving raw credentials in config.
+  rpc ResolveSecret(SecretRequest) returns (SecretResponse);
+
+  // Plugins call this to fetch additional context about the current job,
+  // pipeline, or stage — information not included in ExecuteRequest.
+  rpc GetJobContext(ContextRequest) returns (ContextResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Service 3: HermesHealthService — liveness / readiness probing
+// ---------------------------------------------------------------------------
+
+service HermesHealthService {
+
+  // Standard health check.  Hermes Core calls this periodically.
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Messages — Plugin Spec
+// ---------------------------------------------------------------------------
+
+// Complete self-description returned by GetSpec.
+message PluginSpec {
+  // Unique plugin identifier, e.g. "rest-api-collector".
+  string name = 1;
+
+  // Human-readable display name, e.g. "REST API Collector".
+  string display_name = 2;
+
+  // Semantic version string, e.g. "1.2.0".
+  string version = 3;
+
+  // Plugin archetype.
+  PluginType type = 4;
+
+  // Short description shown in the plugin marketplace.
+  string description = 5;
+
+  // Author or organisation.
+  string author = 6;
+
+  // SPDX license identifier.
+  string license = 7;
+
+  // URL to an icon (SVG or PNG) for Web UI display.
+  string icon_url = 8;
+
+  // JSON Schema (as a JSON string) describing the configuration this
+  // plugin accepts.  Used to auto-generate the Recipe Editor form.
+  string input_schema_json = 9;
+
+  // UI Schema (as a JSON string) providing rendering hints for the Web UI
+  // (widget types, ordering, help text).  Follows react-jsonschema-form
+  // conventions.
+  string ui_schema_json = 10;
+
+  // JSON Schema (as a JSON string) describing the output this plugin
+  // produces.  Used for downstream stage validation and schema registry.
+  string output_schema_json = 11;
+
+  // Categories / tags for marketplace filtering.
+  repeated string tags = 12;
+
+  // Minimum Hermes Core version required to run this plugin.
+  string min_hermes_version = 13;
+
+  // Plugin-declared capabilities for feature negotiation.
+  repeated string capabilities = 14;
+}
+
+// ---------------------------------------------------------------------------
+// Messages — Check (connectivity / config validation)
+// ---------------------------------------------------------------------------
+
+message CheckRequest {
+  // The configuration to validate (JSON string, matches input_schema).
+  string config_json = 1;
+
+  // Optional context so the plugin can resolve template variables.
+  map<string, string> context = 2;
+}
+
+message CheckResponse {
+  // Overall status.
+  CheckStatus status = 1;
+
+  // Human-readable message (especially on failure).
+  string message = 2;
+
+  // Per-field validation errors keyed by JSON-pointer path.
+  // e.g. { "/url": "Connection refused", "/auth/token": "Token expired" }
+  map<string, string> field_errors = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Messages — Discover (schema discovery)
+// ---------------------------------------------------------------------------
+
+message DiscoverRequest {
+  // The plugin configuration (needed to connect and introspect).
+  string config_json = 1;
+
+  // Optional context variables.
+  map<string, string> context = 2;
+}
+
+message DiscoverResponse {
+  // The schemas / streams / tables this plugin can produce or consume.
+  repeated DiscoveredStream streams = 1;
+}
+
+// A single discoverable data stream or table.
+message DiscoveredStream {
+  // Unique stream identifier within this plugin, e.g. "orders", "sensor_data".
+  string stream_id = 1;
+
+  // Human-readable name.
+  string name = 2;
+
+  // JSON Schema (as a JSON string) describing one record in this stream.
+  string schema_json = 3;
+
+  // Supported sync modes.
+  repeated string supported_sync_modes = 4;  // "full_refresh", "incremental"
+
+  // Default cursor field for incremental sync (e.g. "updated_at").
+  string default_cursor_field = 5;
+
+  // Primary key fields.
+  repeated string primary_key_fields = 6;
+
+  // Estimated record count (0 if unknown).
+  int64 estimated_record_count = 7;
+}
+
+// ---------------------------------------------------------------------------
+// Messages — Execute (main processing RPC)
+// ---------------------------------------------------------------------------
+
+message ExecuteRequest {
+  // Plugin configuration (JSON string, validated against input_schema).
+  string config_json = 1;
+
+  // Input data from the previous pipeline stage (JSON string).
+  // For collectors this is typically empty; for algorithms and transfers
+  // it carries the output of the preceding stage.
+  string input_data_json = 2;
+
+  // Execution context provided by the orchestrator.
+  ExecutionContext context = 3;
+
+  // Optional: reference to large input data stored externally.
+  DataReference input_data_ref = 4;
+
+  // Catalog of streams selected by the user (from Discover results).
+  repeated string selected_streams = 5;
+
+  // State from a previous incremental run (JSON string), enabling resume.
+  string state_json = 6;
+}
+
+// Contextual metadata the orchestrator attaches to every execution.
+message ExecutionContext {
+  // Unique job identifier.
+  string job_id = 1;
+
+  // Execution number within this job (1, 2, 3...).
+  int32 execution_no = 2;
+
+  // Stage type being executed.
+  StageType stage_type = 3;
+
+  // Stage order within the pipeline (1-based).
+  int32 stage_order = 4;
+
+  // Pipeline instance identifier.
+  string pipeline_id = 5;
+
+  // Pipeline instance name (human-readable).
+  string pipeline_name = 6;
+
+  // Trigger type: INITIAL, RETRY, REPROCESS.
+  string trigger_type = 7;
+
+  // Who or what triggered this execution.
+  string trigger_source = 8;
+
+  // Timestamp when this execution was started.
+  google.protobuf.Timestamp started_at = 9;
+
+  // Recipe version number.
+  int32 recipe_version = 10;
+
+  // Additional key-value pairs.
+  map<string, string> metadata = 11;
+}
+
+// Reference to data stored outside the message (temp files, object store).
+message DataReference {
+  // Type of external storage: FILE, S3, GCS, etc.
+  string type = 1;
+
+  // URI or path to the data.
+  string uri = 2;
+
+  // Data format.
+  DataEncoding encoding = 3;
+
+  // Size in bytes (0 if unknown).
+  int64 size_bytes = 4;
+
+  // Number of records (0 if unknown).
+  int64 record_count = 5;
+
+  // MIME type.
+  string mime_type = 6;
+}
+
+// ---------------------------------------------------------------------------
+// Messages — ExecuteResponse (streamed back to the orchestrator)
+// ---------------------------------------------------------------------------
+
+message ExecuteResponse {
+  oneof payload {
+    LogMessage        log              = 1;
+    OutputRecord      output           = 2;
+    ErrorDetail       error            = 3;
+    ProgressUpdate    progress         = 4;
+    ExecutionDone     done             = 5;
+    Heartbeat         heartbeat        = 6;
+    StateCheckpoint   state_checkpoint = 7;
+  }
+}
+
+// A single log line from the plugin.
+message LogMessage {
+  LogLevel level = 1;
+  string   message = 2;
+  google.protobuf.Timestamp timestamp = 3;
+
+  // Optional structured metadata attached to the log entry.
+  map<string, string> labels = 4;
+}
+
+// A single output record produced by the plugin.
+message OutputRecord {
+  // The record payload — either inline JSON or raw bytes.
+  oneof data {
+    string data_json  = 1;
+    bytes  data_bytes = 2;
+  }
+
+  // Schema identifier for this record (references a DiscoveredStream.stream_id).
+  string schema_id = 3;
+
+  // Monotonically increasing index within this execution (0-based).
+  int64 record_index = 4;
+
+  // Encoding of data_bytes (ignored when data_json is set).
+  DataEncoding encoding = 5;
+
+  // Optional per-record metadata.
+  map<string, string> metadata = 6;
+}
+
+// Detailed error information.
+message ErrorDetail {
+  // Machine-readable error code, e.g. "CONNECTION_TIMEOUT", "SCHEMA_MISMATCH".
+  string code = 1;
+
+  // Human-readable error message.
+  string message = 2;
+
+  // Whether the orchestrator should retry this execution.
+  bool is_retryable = 3;
+
+  // Severity classification.
+  ErrorSeverity severity = 4;
+
+  // Full stack trace (optional, for debugging).
+  string stack_trace = 5;
+
+  // Structured error context.
+  map<string, string> context = 6;
+}
+
+// Progress update sent periodically during execution.
+message ProgressUpdate {
+  // Completion percentage (0.0 to 1.0).
+  double percentage = 1;
+
+  // Human-readable progress message.
+  string message = 2;
+
+  // Number of records processed so far.
+  int64 records_processed = 3;
+
+  // Total records expected (0 if unknown).
+  int64 records_total = 4;
+
+  // Bytes processed so far.
+  int64 bytes_processed = 5;
+
+  // Estimated seconds remaining (-1 if unknown).
+  int32 estimated_seconds_remaining = 6;
+}
+
+// Marks the successful end of execution.
+message ExecutionDone {
+  // Summary statistics as a JSON string.
+  string summary_json = 1;
+
+  // Total records produced.
+  int64 total_records = 2;
+
+  // Total bytes produced.
+  int64 total_bytes = 3;
+
+  // Wall-clock duration in milliseconds.
+  int64 duration_ms = 4;
+
+  // Reference to the full output data if stored externally.
+  DataReference output_ref = 5;
+}
+
+// Periodic heartbeat so the orchestrator knows the plugin is still alive.
+message Heartbeat {
+  google.protobuf.Timestamp timestamp = 1;
+}
+
+// Incremental state checkpoint for resumable processing.
+// If a plugin crashes and restarts, the last checkpoint is fed back
+// via ExecuteRequest.state_json.
+message StateCheckpoint {
+  // Opaque state blob (JSON string).  Only the plugin interprets this.
+  string state_json = 1;
+
+  // Number of records processed up to this checkpoint.
+  int64 records_processed = 2;
+
+  // Timestamp of this checkpoint.
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Messages — DataChunk (for ExecuteStream bidirectional streaming)
+// ---------------------------------------------------------------------------
+
+// Used by the client to push large input data in chunks.
+message DataChunk {
+  // Zero-based chunk index.
+  int32 chunk_index = 1;
+
+  // Raw data bytes for this chunk.
+  bytes data = 2;
+
+  // True if this is the last chunk.
+  bool is_last = 3;
+
+  // Encoding of the data bytes.
+  DataEncoding encoding = 4;
+
+  // Total number of chunks expected (0 if unknown).
+  int32 total_chunks = 5;
+
+  // Schema identifier for the data being streamed.
+  string schema_id = 6;
+
+  // On the first chunk, the full execution context and config are attached.
+  ExecuteRequest initial_request = 7;
+}
+
+// ---------------------------------------------------------------------------
+// Messages — HermesControlService (plugin -> core callbacks)
+// ---------------------------------------------------------------------------
+
+// Custom metrics reported by a plugin during or after execution.
+message MetricsReport {
+  // Plugin name (self-identification).
+  string plugin_name = 1;
+
+  // Job ID this report belongs to.
+  string job_id = 2;
+
+  // Metrics as key-value pairs.  Values are numeric encoded as strings.
+  // e.g. { "records_per_second": "1523.4", "error_rate": "0.002" }
+  map<string, string> metrics = 3;
+
+  // Timestamp of this report.
+  google.protobuf.Timestamp timestamp = 4;
+
+  // Metric labels for grouping (e.g. { "stream": "orders" }).
+  map<string, string> labels = 5;
+}
+
+// Request to resolve a named secret from the Hermes vault.
+message SecretRequest {
+  // The secret reference name as declared in the plugin config.
+  // e.g. "vendor_api_token", "db_password"
+  string secret_name = 1;
+
+  // Scope for multi-tenant deployments.
+  string scope = 2;
+}
+
+message SecretResponse {
+  // The resolved secret value.
+  string secret_value = 1;
+
+  // When this secret expires (zero value = no expiry).
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// Request for additional job context not included in ExecuteRequest.
+message ContextRequest {
+  // Job ID.
+  string job_id = 1;
+
+  // Specific fields the plugin wants.
+  // e.g. ["source_metadata", "previous_execution_output", "pipeline_variables"]
+  repeated string requested_fields = 2;
+}
+
+message ContextResponse {
+  // Requested context as a JSON string.
+  string context_json = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Messages — Health Check
+// ---------------------------------------------------------------------------
+
+message HealthCheckRequest {
+  // Optional service name to check.
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN     = 0;
+    SERVING     = 1;
+    NOT_SERVING = 2;
+  }
+  ServingStatus status = 1;
+  string message = 2;
+}

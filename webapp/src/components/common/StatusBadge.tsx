@@ -17,7 +17,7 @@ const statusStyles: Record<string, string> = {
   STOPPED: 'bg-slate-100 text-slate-600',
   ERROR: 'bg-red-100 text-red-700',
 
-  // WorkItem statuses
+  // Job statuses
   DETECTED: 'bg-blue-100 text-blue-700',
   QUEUED: 'bg-indigo-100 text-indigo-700',
   PROCESSING: 'bg-yellow-100 text-yellow-700',

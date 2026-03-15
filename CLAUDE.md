@@ -1,8 +1,8 @@
-# Vessel
+# Hermes
 
-Lightweight data processing platform with per-item tracking, visual recipe management, and first-class reprocessing.
+Lightweight data processing platform with per-job tracking, visual recipe management, and first-class reprocessing.
 
-"Carry your data. Track every item."
+"The messenger for your data."
 
 ## Tech Stack
 
@@ -25,9 +25,9 @@ docker compose up -d
 ## Directory Structure
 
 ```
-vessel/
+hermes/
   backend/           # FastAPI application
-    vessel/          # Python package
+    vessel/          # Python package (kept as-is for import compatibility)
       main.py        # App entrypoint
       models/        # SQLAlchemy models
       api/           # Route handlers
@@ -73,5 +73,5 @@ See `docs/ARCHITECTURE.md` for full design specification including:
 - Processing engine and execution model
 - Plugin system (YAML + JSON Schema config)
 - API design and WebSocket events
-- Database schema (recipes, steps, runs, items, provenance)
+- Database schema (recipes, stages, runs, items, provenance)
 - NiFi bridge integration (optional)

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "COLLECTOR",
   "description": "Monitors a directory for new or modified files matching a pattern and outputs file information.",
-  "author": "vessel-core",
+  "author": "hermes-core",
   "license": "Apache-2.0",
   "runtime": "python",
   "entrypoint": "main.py",

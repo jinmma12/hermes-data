@@ -9,10 +9,10 @@ import type {
   TransferInstance,
   InstanceVersion,
   PipelineInstance,
-  PipelineStep,
+  PipelineStage,
   PipelineActivation,
-  WorkItem,
-  WorkItemExecution,
+  Job,
+  JobExecution,
   ExecutionEventLog,
   ReprocessPayload,
   BulkReprocessPayload,
@@ -141,17 +141,17 @@ export const pipelines = {
   update: (id: number, data: Partial<PipelineInstance>) =>
     api.put<PipelineInstance>(`/pipelines/${id}`, data).then((r) => r.data),
 
-  // Steps
-  getSteps: (id: number) =>
-    api.get<PipelineStep[]>(`/pipelines/${id}/steps`).then((r) => r.data),
-  createStep: (id: number, data: Partial<PipelineStep>) =>
-    api.post<PipelineStep>(`/pipelines/${id}/steps`, data).then((r) => r.data),
-  updateStep: (id: number, stepId: number, data: Partial<PipelineStep>) =>
-    api.put<PipelineStep>(`/pipelines/${id}/steps/${stepId}`, data).then((r) => r.data),
-  deleteStep: (id: number, stepId: number) =>
-    api.delete(`/pipelines/${id}/steps/${stepId}`).then((r) => r.data),
-  reorderSteps: (id: number, stepIds: number[]) =>
-    api.put(`/pipelines/${id}/steps/reorder`, { step_ids: stepIds }).then((r) => r.data),
+  // Stages
+  getStages: (id: number) =>
+    api.get<PipelineStage[]>(`/pipelines/${id}/stages`).then((r) => r.data),
+  createStage: (id: number, data: Partial<PipelineStage>) =>
+    api.post<PipelineStage>(`/pipelines/${id}/stages`, data).then((r) => r.data),
+  updateStage: (id: number, stageId: number, data: Partial<PipelineStage>) =>
+    api.put<PipelineStage>(`/pipelines/${id}/stages/${stageId}`, data).then((r) => r.data),
+  deleteStage: (id: number, stageId: number) =>
+    api.delete(`/pipelines/${id}/stages/${stageId}`).then((r) => r.data),
+  reorderStages: (id: number, stageIds: number[]) =>
+    api.put(`/pipelines/${id}/stages/reorder`, { stage_ids: stageIds }).then((r) => r.data),
 
   // Lifecycle
   activate: (id: number) =>
@@ -165,10 +165,10 @@ export const pipelines = {
 };
 
 // ============================================================
-// WorkItem APIs
+// Job APIs
 // ============================================================
 
-export interface WorkItemFilters {
+export interface JobFilters {
   status?: string;
   pipeline_instance_id?: number;
   date_from?: string;
@@ -177,27 +177,27 @@ export interface WorkItemFilters {
   page_size?: number;
 }
 
-export const workItems = {
-  list: (filters?: WorkItemFilters) =>
-    api.get<PaginatedResponse<WorkItem>>('/work-items', { params: filters }).then((r) => r.data),
+export const jobs = {
+  list: (filters?: JobFilters) =>
+    api.get<PaginatedResponse<Job>>('/jobs', { params: filters }).then((r) => r.data),
   get: (id: number) =>
-    api.get<WorkItem>(`/work-items/${id}`).then((r) => r.data),
+    api.get<Job>(`/jobs/${id}`).then((r) => r.data),
   getExecutions: (id: number) =>
-    api.get<WorkItemExecution[]>(`/work-items/${id}/executions`).then((r) => r.data),
+    api.get<JobExecution[]>(`/jobs/${id}/executions`).then((r) => r.data),
   getExecution: (id: number, execId: number) =>
-    api.get<WorkItemExecution>(`/work-items/${id}/executions/${execId}`).then((r) => r.data),
+    api.get<JobExecution>(`/jobs/${id}/executions/${execId}`).then((r) => r.data),
   getExecutionSteps: (id: number, execId: number) =>
-    api.get(`/work-items/${id}/executions/${execId}/steps`).then((r) => r.data),
+    api.get(`/jobs/${id}/executions/${execId}/stages`).then((r) => r.data),
   getExecutionSnapshot: (id: number, execId: number) =>
-    api.get(`/work-items/${id}/executions/${execId}/snapshot`).then((r) => r.data),
+    api.get(`/jobs/${id}/executions/${execId}/snapshot`).then((r) => r.data),
   getExecutionLogs: (id: number, execId: number) =>
-    api.get<ExecutionEventLog[]>(`/work-items/${id}/executions/${execId}/logs`).then((r) => r.data),
+    api.get<ExecutionEventLog[]>(`/jobs/${id}/executions/${execId}/logs`).then((r) => r.data),
 
   // Reprocess
   reprocess: (id: number, data: ReprocessPayload) =>
-    api.post(`/work-items/${id}/reprocess`, data).then((r) => r.data),
+    api.post(`/jobs/${id}/reprocess`, data).then((r) => r.data),
   bulkReprocess: (data: BulkReprocessPayload) =>
-    api.post('/work-items/bulk-reprocess', data).then((r) => r.data),
+    api.post('/jobs/bulk-reprocess', data).then((r) => r.data),
 };
 
 // ============================================================
@@ -209,8 +209,8 @@ export const monitor = {
     api.get<MonitorStats>('/monitor/stats').then((r) => r.data),
   getActiveActivations: () =>
     api.get<PipelineActivation[]>('/monitor/activations').then((r) => r.data),
-  getRecentWorkItems: (limit: number = 20) =>
-    api.get<WorkItem[]>(`/monitor/recent-work-items?limit=${limit}`).then((r) => r.data),
+  getRecentJobs: (limit: number = 20) =>
+    api.get<Job[]>(`/monitor/recent-jobs?limit=${limit}`).then((r) => r.data),
 };
 
 // ============================================================

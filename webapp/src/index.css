@@ -10,11 +10,11 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center gap-2 rounded-lg bg-vessel-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-vessel-700 focus:outline-none focus:ring-2 focus:ring-vessel-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center gap-2 rounded-lg bg-hermes-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-hermes-700 focus:outline-none focus:ring-2 focus:ring-hermes-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-vessel-500 focus:ring-offset-2;
+    @apply inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-hermes-500 focus:ring-offset-2;
   }
 
   .btn-danger {
@@ -26,7 +26,7 @@
   }
 
   .input {
-    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus:border-vessel-500 focus:outline-none focus:ring-1 focus:ring-vessel-500;
+    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus:border-hermes-500 focus:outline-none focus:ring-1 focus:ring-hermes-500;
   }
 }
 

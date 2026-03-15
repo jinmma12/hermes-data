@@ -1,22 +1,22 @@
 # NiFi Integration Guide
 
-> Vessel + NiFi = NiFi's data movement power + Vessel's per-item tracking and simple UI
+> Hermes + NiFi = NiFi's data movement power + Hermes's per-item tracking and simple UI
 
 ---
 
-## Why NiFi + Vessel?
+## Why NiFi + Hermes?
 
-Apache NiFi and Vessel serve complementary roles in a data processing architecture:
+Apache NiFi and Hermes serve complementary roles in a data processing architecture:
 
-| Capability | NiFi | Vessel | Together |
+| Capability | NiFi | Hermes | Together |
 |---|---|---|---|
 | **Data routing & transformation** | 300+ built-in processors, clustering, back-pressure | Lightweight plugin system | NiFi handles heavy data movement |
-| **Per-item tracking** | Provenance events (developer-oriented) | WorkItem Explorer with search, filter, reprocess | Vessel surfaces NiFi provenance in a user-friendly UI |
-| **Configuration management** | XML/JSON config, Parameter Contexts | Recipe UI with versioning, JSON Schema forms | Non-developers manage NiFi through Vessel's Recipe Editor |
-| **Reprocessing** | Manual replay from provenance viewer | First-class reprocessing from any step | One-click reprocess through Vessel UI |
-| **Deployment** | JVM 2GB+, complex clustering | Lightweight Python + React | Vessel adds management layer without duplicating NiFi's engine |
+| **Per-item tracking** | Provenance events (developer-oriented) | Job Explorer with search, filter, reprocess | Hermes surfaces NiFi provenance in a user-friendly UI |
+| **Configuration management** | XML/JSON config, Parameter Contexts | Recipe UI with versioning, JSON Schema forms | Non-developers manage NiFi through Hermes's Recipe Editor |
+| **Reprocessing** | Manual replay from provenance viewer | First-class reprocessing from any step | One-click reprocess through Hermes UI |
+| **Deployment** | JVM 2GB+, complex clustering | Lightweight Python + React | Hermes adds management layer without duplicating NiFi's engine |
 
-### When to use NiFi + Vessel
+### When to use NiFi + Hermes
 
 - Your organization has **existing NiFi flows** that work well but need better management UI
 - **Non-developers** need to change NiFi processor parameters safely
@@ -25,7 +25,7 @@ Apache NiFi and Vessel serve complementary roles in a data processing architectu
 
 ### When NOT to use NiFi integration
 
-- Your data volumes are small enough for Vessel's native plugins
+- Your data volumes are small enough for Hermes's native plugins
 - You don't have an existing NiFi installation
 - You want the lightest possible deployment (Mode 3 below)
 
@@ -33,23 +33,23 @@ Apache NiFi and Vessel serve complementary roles in a data processing architectu
 
 ## Integration Modes
 
-### Mode 1: Vessel as NiFi Manager (Recommended for legacy migration)
+### Mode 1: Hermes as NiFi Manager (Recommended for legacy migration)
 
 ```
 ┌──────────────────────────────────────────────┐
-│                Vessel Web UI                  │
+│                Hermes Web UI                  │
 │  ┌──────────┐ ┌──────────┐ ┌──────────────┐ │
-│  │ Pipeline  │ │ Recipe   │ │ WorkItem     │ │
+│  │ Pipeline  │ │ Recipe   │ │ Job     │ │
 │  │ Designer  │ │ Editor   │ │ Explorer     │ │
 │  └─────┬────┘ └─────┬────┘ └──────┬───────┘ │
 └────────┼────────────┼─────────────┼──────────┘
          │            │             │
     ┌────▼────────────▼─────────────▼──────────┐
-    │           NiFiVesselBridge                 │
+    │           NiFiHermesBridge                 │
     │                                            │
     │  sync_process_groups  →  Pipeline view     │
     │  push_recipe_to_nifi  →  Parameter update  │
-    │  sync_provenance      →  WorkItem tracking │
+    │  sync_provenance      →  Job tracking │
     └────────────────────┬─────────────────────┘
                          │ REST API
     ┌────────────────────▼─────────────────────┐
@@ -62,18 +62,18 @@ Apache NiFi and Vessel serve complementary roles in a data processing architectu
 
 **How it works:**
 - Existing NiFi flows continue running without modification
-- Vessel periodically syncs NiFi process groups as Vessel pipelines
-- Vessel reads NiFi provenance events to create WorkItem tracking records
-- Vessel's Recipe UI pushes configuration to NiFi Parameter Contexts
-- Non-developers manage NiFi through Vessel's simpler, form-based UI
+- Hermes periodically syncs NiFi process groups as Hermes pipelines
+- Hermes reads NiFi provenance events to create Job tracking records
+- Hermes's Recipe UI pushes configuration to NiFi Parameter Contexts
+- Non-developers manage NiFi through Hermes's simpler, form-based UI
 
 **Best for:** Organizations with mature NiFi deployments that need a management layer.
 
-### Mode 2: Vessel with NiFi Steps (Hybrid)
+### Mode 2: Hermes with NiFi Steps (Hybrid)
 
 ```
 ┌──────────────────────────────────────────────────┐
-│              Vessel Pipeline                      │
+│              Hermes Pipeline                      │
 │                                                   │
 │  Step 1 (PLUGIN)     Step 2 (NIFI_FLOW)          │
 │  ┌────────────┐      ┌──────────────────┐        │
@@ -91,19 +91,19 @@ Apache NiFi and Vessel serve complementary roles in a data processing architectu
 ```
 
 **How it works:**
-- Vessel orchestrates the overall pipeline
+- Hermes orchestrates the overall pipeline
 - Individual steps can use `NIFI_FLOW` execution type
 - NiFi handles specific heavy-duty collection/transformation steps
-- Other steps use native Vessel plugins (Python, scripts, HTTP)
-- Vessel tracks WorkItems across both native and NiFi steps
+- Other steps use native Hermes plugins (Python, scripts, HTTP)
+- Hermes tracks Jobs across both native and NiFi steps
 
 **Best for:** New pipelines that need NiFi's power for specific steps.
 
-### Mode 3: Full Vessel (NiFi-free)
+### Mode 3: Full Hermes (NiFi-free)
 
 ```
 ┌──────────────────────────────────────────┐
-│           Vessel Pipeline                 │
+│           Hermes Pipeline                 │
 │                                           │
 │  Step 1 (PLUGIN)  →  Step 2 (SCRIPT)     │
 │  │ Python          │ Any language         │
@@ -117,7 +117,7 @@ Apache NiFi and Vessel serve complementary roles in a data processing architectu
 ```
 
 **How it works:**
-- Vessel handles everything with native plugins
+- Hermes handles everything with native plugins
 - No NiFi dependency — lighter deployment
 - Set `VESSEL_NIFI_ENABLED=false` (the default)
 
@@ -131,11 +131,11 @@ Apache NiFi and Vessel serve complementary roles in a data processing architectu
 
 - Apache NiFi 1.9.x or later running and accessible via HTTP/HTTPS
 - NiFi user account with API access (if secured)
-- Vessel backend running (Python 3.12+)
+- Hermes backend running (Python 3.12+)
 
 ### 2. Configuration
 
-Add NiFi connection settings to your Vessel `.env` file:
+Add NiFi connection settings to your Hermes `.env` file:
 
 ```bash
 # Required
@@ -143,7 +143,7 @@ VESSEL_NIFI_ENABLED=true
 VESSEL_NIFI_BASE_URL=https://your-nifi-host:8443/nifi-api
 
 # Authentication (if NiFi is secured)
-VESSEL_NIFI_USERNAME=vessel-service-account
+VESSEL_NIFI_USERNAME=hermes-service-account
 VESSEL_NIFI_PASSWORD=your-secure-password
 
 # Optional tuning
@@ -155,24 +155,24 @@ VESSEL_NIFI_PROVENANCE_MAX_WAIT=300  # max seconds to wait for flow completion
 ### 3. Connect to existing NiFi flows
 
 ```python
-from vessel.infrastructure.nifi import NiFiClient, NiFiConfig
+from hermes.infrastructure.nifi import NiFiClient, NiFiConfig
 
 config = NiFiConfig()  # reads from environment variables
 async with NiFiClient(config) as client:
-    # List all process groups (appears as pipelines in Vessel)
+    # List all process groups (appears as pipelines in Hermes)
     groups = await client.list_process_groups()
     for g in groups:
         print(f"  {g.name} ({g.id}) - {g.running_count} running")
 ```
 
-### 4. Import NiFi flows into Vessel
+### 4. Import NiFi flows into Hermes
 
 ```python
-from vessel.infrastructure.nifi.bridge import NiFiVesselBridge
+from hermes.infrastructure.nifi.bridge import NiFiHermesBridge
 
-bridge = NiFiVesselBridge(client, config)
+bridge = NiFiHermesBridge(client, config)
 
-# Sync all top-level process groups as Vessel pipelines
+# Sync all top-level process groups as Hermes pipelines
 pipelines = await bridge.sync_process_groups_as_pipelines()
 for p in pipelines:
     print(f"Pipeline: {p.name}")
@@ -186,7 +186,7 @@ for p in pipelines:
 # List NiFi parameter contexts
 contexts = await client.list_parameter_contexts()
 
-# Push a Vessel Recipe update to NiFi
+# Push a Hermes Recipe update to NiFi
 recipe_config = {
     "api_url": "https://vendor.example.com/api/v2",
     "poll_interval": "5 min",
@@ -195,25 +195,25 @@ recipe_config = {
 await bridge.push_recipe_to_nifi(recipe_config, parameter_context_id="ctx-123")
 ```
 
-### 6. View NiFi provenance in Vessel's WorkItem Explorer
+### 6. View NiFi provenance in Hermes's Job Explorer
 
 ```python
 from datetime import datetime, timedelta, timezone
 
-# Sync recent provenance events as Vessel WorkItems
+# Sync recent provenance events as Hermes Jobs
 since = datetime.now(timezone.utc) - timedelta(hours=1)
-work_items = await bridge.sync_nifi_provenance_to_work_items(
+jobs = await bridge.sync_nifi_provenance_to_jobs(
     pipeline_id="process-group-id",
     since=since,
 )
-for wi in work_items:
+for wi in jobs:
     print(f"  FlowFile {wi.flowfile_uuid}: {wi.event_type} at {wi.component_name}")
 ```
 
 ### 7. Use NiFi as a pipeline step
 
 ```python
-from vessel.infrastructure.nifi.executor import NiFiFlowExecutor
+from hermes.infrastructure.nifi.executor import NiFiFlowExecutor
 
 executor = NiFiFlowExecutor(client, config)
 result = await executor.execute(
@@ -224,7 +224,7 @@ result = await executor.execute(
         "stop_after": False,   # leave running for next invocation
     },
     input_data={"records": [{"id": 1, "value": "test"}]},
-    context={"pipeline_id": "my-pipeline", "step_id": "etl-step"},
+    context={"pipeline_id": "my-pipeline", "stage_id": "etl-step"},
 )
 
 if result.success:
@@ -238,34 +238,34 @@ else:
 
 ## API Mapping
 
-How NiFi concepts map to Vessel concepts:
+How NiFi concepts map to Hermes concepts:
 
-| NiFi Concept | Vessel Concept | Bridge Method |
+| NiFi Concept | Hermes Concept | Bridge Method |
 |---|---|---|
 | Process Group | PipelineInstance | `sync_process_groups_as_pipelines()` |
 | Processor | Pipeline Step | (included in sync) |
 | Processor Properties | Recipe `config_json` | `push_recipe_to_nifi()` |
 | Parameter Context | Recipe version | `push_recipe_to_nifi()` |
-| FlowFile | WorkItem | `sync_nifi_provenance_to_work_items()` |
-| Provenance Event | ExecutionEventLog | `sync_nifi_provenance_to_work_items()` |
+| FlowFile | Job | `sync_nifi_provenance_to_jobs()` |
+| Provenance Event | ExecutionEventLog | `sync_nifi_provenance_to_jobs()` |
 | Input Port | Pipeline step boundary (entry) | `trigger_nifi_flow()` |
 | Output Port | Pipeline step boundary (exit) | `monitor_nifi_flow_completion()` |
-| Connection Queue | WorkItem queue between steps | `client.list_connections()` |
+| Connection Queue | Job queue between steps | `client.list_connections()` |
 | Template (1.x) | Pipeline template | `client.instantiate_template()` |
 | Processor Type | CollectorDefinition | `map_nifi_processor_to_definition()` |
 
-### NiFi Processor State -> Vessel Pipeline Status
+### NiFi Processor State -> Hermes Pipeline Status
 
-| NiFi State | Vessel Status |
+| NiFi State | Hermes Status |
 |---|---|
 | RUNNING | ACTIVE |
 | STOPPED | PAUSED |
 | DISABLED | DISABLED |
 | Invalid (validation errors) | ERROR |
 
-### NiFi Provenance Event Type -> Vessel WorkItem Event
+### NiFi Provenance Event Type -> Hermes Job Event
 
-| NiFi Event | Vessel Event | Meaning |
+| NiFi Event | Hermes Event | Meaning |
 |---|---|---|
 | CREATE | ITEM_CREATED | New data entered the flow |
 | RECEIVE | ITEM_RECEIVED | Data received from external source |
@@ -283,7 +283,7 @@ How NiFi concepts map to Vessel concepts:
 
 ### Authentication
 
-Vessel uses NiFi's token-based authentication (NiFi 1.9.x+):
+Hermes uses NiFi's token-based authentication (NiFi 1.9.x+):
 
 1. `POST /access/token` with username/password -> bearer token
 2. Token included as `Authorization: Bearer <token>` on all requests
@@ -295,10 +295,10 @@ Vessel uses NiFi's token-based authentication (NiFi 1.9.x+):
 NiFi uses a revision system to prevent concurrent modification conflicts:
 
 - Every mutable entity has a `revision.version` number
-- Before updating, Vessel fetches the current revision
+- Before updating, Hermes fetches the current revision
 - The revision is included in PUT/DELETE requests
 - If another client modified the entity, NiFi returns HTTP 409
-- Vessel raises `NiFiConflictError` which callers can retry
+- Hermes raises `NiFiConflictError` which callers can retry
 
 ### Error Handling
 
@@ -324,12 +324,12 @@ The NiFi client provides structured error types:
 ## Module Structure
 
 ```
-vessel/backend/vessel/infrastructure/nifi/
+hermes/backend/hermes/infrastructure/nifi/
 ├── __init__.py      # Public API exports
 ├── config.py        # NiFiConfig (pydantic-settings)
 ├── models.py        # Pydantic models for NiFi API responses
 ├── client.py        # NiFiClient - async REST API client
-├── bridge.py        # NiFiVesselBridge - concept mapping layer
+├── bridge.py        # NiFiHermesBridge - concept mapping layer
 └── executor.py      # NiFiFlowExecutor - pipeline step executor
 ```
 
@@ -355,8 +355,8 @@ NiFi 2.0 introduces several changes. This integration handles them as follows:
 | Change in NiFi 2.x | Impact | Mitigation |
 |---|---|---|
 | Templates removed | `list_templates()`, `instantiate_template()`, `upload_template()` will fail | Use Parameter Contexts instead; template methods are NiFi 1.x only |
-| Parameter Providers | New way to inject parameters | Future bridge method can map Vessel as a Parameter Provider |
-| Python processors | NiFi 2.0 supports Python processors natively | Vessel plugins can potentially run as NiFi processors |
+| Parameter Providers | New way to inject parameters | Future bridge method can map Hermes as a Parameter Provider |
+| Python processors | NiFi 2.0 supports Python processors natively | Hermes plugins can potentially run as NiFi processors |
 | REST API changes | Some endpoints may change paths | All paths are relative to `base_url`; update config if needed |
 
 The integration is designed to work with NiFi 1.9.x as the baseline, with

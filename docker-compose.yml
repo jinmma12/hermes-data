@@ -3,29 +3,29 @@ version: "3.9"
 services:
   postgres:
     image: postgres:15
-    container_name: vessel-postgres
+    container_name: hermes-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: vessel
-      POSTGRES_PASSWORD: vessel
-      POSTGRES_DB: vessel_db
+      POSTGRES_USER: hermes
+      POSTGRES_PASSWORD: hermes
+      POSTGRES_DB: hermes_db
     ports:
       - "5432:5432"
     volumes:
-      - vessel_pgdata:/var/lib/postgresql/data
+      - hermes_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vessel -d vessel_db"]
+      test: ["CMD-SHELL", "pg_isready -U hermes -d hermes_db"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
-      - vessel-net
+      - hermes-net
 
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: vessel-api
+    container_name: hermes-api
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -34,18 +34,18 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://vessel:vessel@postgres:5432/vessel_db
+      DATABASE_URL: postgresql+asyncpg://hermes:hermes@postgres:5432/hermes_db
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - vessel-net
+      - hermes-net
 
   webapp:
     build:
       context: ./webapp
       dockerfile: Dockerfile
-    container_name: vessel-webapp
+    container_name: hermes-webapp
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -57,11 +57,11 @@ services:
     depends_on:
       - api
     networks:
-      - vessel-net
+      - hermes-net
 
 volumes:
-  vessel_pgdata:
+  hermes_pgdata:
 
 networks:
-  vessel-net:
+  hermes-net:
     driver: bridge

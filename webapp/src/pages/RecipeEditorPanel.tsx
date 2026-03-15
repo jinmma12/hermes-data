@@ -3,19 +3,19 @@ import type { RJSFSchema, UiSchema } from '@rjsf/utils';
 import Form from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 
-import { StepType } from '../types';
+import { StageType } from '../types';
 import type { Recipe } from '../types';
 
 interface RecipeEditorPanelProps {
-  stepId: number;
+  stageId: number;
   refId: number;
-  stepType: StepType;
+  stageType: StageType;
   onClose: () => void;
 }
 
-// Demo schemas for different step types
-const demoSchemas: Record<StepType, { schema: RJSFSchema; uiSchema: UiSchema; defaultConfig: Record<string, unknown> }> = {
-  [StepType.COLLECT]: {
+// Demo schemas for different stage types
+const demoSchemas: Record<StageType, { schema: RJSFSchema; uiSchema: UiSchema; defaultConfig: Record<string, unknown> }> = {
+  [StageType.COLLECT]: {
     schema: {
       type: 'object',
       properties: {
@@ -40,7 +40,7 @@ const demoSchemas: Record<StepType, { schema: RJSFSchema; uiSchema: UiSchema; de
       auth_type: 'bearer',
     },
   },
-  [StepType.ALGORITHM]: {
+  [StageType.ALGORITHM]: {
     schema: {
       type: 'object',
       properties: {
@@ -63,7 +63,7 @@ const demoSchemas: Record<StepType, { schema: RJSFSchema; uiSchema: UiSchema; de
       sensitivity: 'medium',
     },
   },
-  [StepType.TRANSFER]: {
+  [StageType.TRANSFER]: {
     schema: {
       type: 'object',
       properties: {
@@ -106,18 +106,18 @@ const demoVersionHistory: Recipe[] = [
   },
 ];
 
-export default function RecipeEditorPanel({ stepType, onClose }: RecipeEditorPanelProps) {
+export default function RecipeEditorPanel({ stageType, onClose }: RecipeEditorPanelProps) {
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [changeNote, setChangeNote] = useState('');
   const [versions, setVersions] = useState<Recipe[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
-  const demoData = demoSchemas[stepType];
+  const demoData = demoSchemas[stageType];
 
   useEffect(() => {
     setFormData(demoData.defaultConfig);
     setVersions(demoVersionHistory);
-  }, [stepType]);
+  }, [stageType]);
 
   function handleSave() {
     if (!changeNote.trim()) {
@@ -137,11 +137,11 @@ export default function RecipeEditorPanel({ stepType, onClose }: RecipeEditorPan
     alert('Recipe saved as new version!');
   }
 
-  const stepLabel = {
-    [StepType.COLLECT]: { name: 'Collector', color: 'blue' },
-    [StepType.ALGORITHM]: { name: 'Algorithm', color: 'purple' },
-    [StepType.TRANSFER]: { name: 'Transfer', color: 'emerald' },
-  }[stepType];
+  const stageLabel = {
+    [StageType.COLLECT]: { name: 'Collector', color: 'blue' },
+    [StageType.ALGORITHM]: { name: 'Algorithm', color: 'purple' },
+    [StageType.TRANSFER]: { name: 'Transfer', color: 'emerald' },
+  }[stageType];
 
   return (
     <div className="flex w-96 flex-col border-l border-slate-200 bg-white">
@@ -149,10 +149,10 @@ export default function RecipeEditorPanel({ stepType, onClose }: RecipeEditorPan
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className={`inline-block h-2 w-2 rounded-full bg-${stepLabel.color}-500`} />
+            <span className={`inline-block h-2 w-2 rounded-full bg-${stageLabel.color}-500`} />
             <h3 className="text-sm font-semibold text-slate-900">Recipe Editor</h3>
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">{stepLabel.name} Configuration</p>
+          <p className="mt-0.5 text-xs text-slate-500">{stageLabel.name} Configuration</p>
         </div>
         <button
           onClick={onClose}
@@ -169,7 +169,7 @@ export default function RecipeEditorPanel({ stepType, onClose }: RecipeEditorPan
         <button
           onClick={() => setShowHistory(false)}
           className={`flex-1 px-4 py-2 text-xs font-medium transition-colors ${
-            !showHistory ? 'border-b-2 border-vessel-600 text-vessel-700' : 'text-slate-500 hover:text-slate-700'
+            !showHistory ? 'border-b-2 border-hermes-600 text-hermes-700' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           Configuration
@@ -177,7 +177,7 @@ export default function RecipeEditorPanel({ stepType, onClose }: RecipeEditorPan
         <button
           onClick={() => setShowHistory(true)}
           className={`flex-1 px-4 py-2 text-xs font-medium transition-colors ${
-            showHistory ? 'border-b-2 border-vessel-600 text-vessel-700' : 'text-slate-500 hover:text-slate-700'
+            showHistory ? 'border-b-2 border-hermes-600 text-hermes-700' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           Version History ({versions.length})
@@ -189,7 +189,7 @@ export default function RecipeEditorPanel({ stepType, onClose }: RecipeEditorPan
         {!showHistory ? (
           <div className="p-4">
             {/* JSON Schema Form */}
-            <div className="vessel-form">
+            <div className="hermes-form">
               <Form
                 schema={demoData.schema}
                 uiSchema={demoData.uiSchema}
@@ -230,7 +230,7 @@ export default function RecipeEditorPanel({ stepType, onClose }: RecipeEditorPan
             {versions.map((version) => (
               <div
                 key={version.version_no}
-                className={`px-4 py-3 ${version.is_current ? 'bg-vessel-50' : ''}`}
+                className={`px-4 py-3 ${version.is_current ? 'bg-hermes-50' : ''}`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -238,7 +238,7 @@ export default function RecipeEditorPanel({ stepType, onClose }: RecipeEditorPan
                       v{version.version_no}
                     </span>
                     {version.is_current && (
-                      <span className="rounded-full bg-vessel-100 px-2 py-0.5 text-[10px] font-medium text-vessel-700">
+                      <span className="rounded-full bg-hermes-100 px-2 py-0.5 text-[10px] font-medium text-hermes-700">
                         current
                       </span>
                     )}
@@ -256,7 +256,7 @@ export default function RecipeEditorPanel({ stepType, onClose }: RecipeEditorPan
                 </pre>
 
                 {!version.is_current && (
-                  <button className="mt-2 text-[11px] font-medium text-vessel-600 hover:text-vessel-700">
+                  <button className="mt-2 text-[11px] font-medium text-hermes-600 hover:text-hermes-700">
                     Restore this version
                   </button>
                 )}

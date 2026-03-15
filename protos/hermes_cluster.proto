@@ -1,0 +1,549 @@
+// Hermes Cluster Protocol — gRPC Service Definitions
+//
+// Defines the inter-node communication protocol for distributed Hermes clusters.
+// Used by coordinators and workers for registration, heartbeat, job assignment,
+// job lifecycle management, work stealing, and metrics reporting.
+//
+// This protocol is activated in MinimalCluster and LargeCluster modes.
+// In Standalone mode, all communication is in-process and this protocol is unused.
+//
+// See docs/CLUSTER_DESIGN.md for the full cluster architecture specification.
+
+syntax = "proto3";
+
+package hermes.cluster.v1;
+
+option csharp_namespace = "Hermes.Cluster.V1";
+option go_package = "hermes/cluster/v1;clusterv1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+// Role of a node within the cluster.
+enum NodeRole {
+  NODE_ROLE_UNSPECIFIED  = 0;
+  NODE_ROLE_COORDINATOR  = 1;
+  NODE_ROLE_WORKER       = 2;
+  NODE_ROLE_EDGE         = 3;
+}
+
+// Current status of a node as tracked by the coordinator.
+enum NodeStatus {
+  NODE_STATUS_UNSPECIFIED = 0;
+  NODE_STATUS_STARTING    = 1;  // Node is booting, not yet ready
+  NODE_STATUS_ACTIVE      = 2;  // Node is healthy and processing
+  NODE_STATUS_DRAINING    = 3;  // Node is finishing current jobs, accepting no new ones
+  NODE_STATUS_SUSPECT     = 4;  // Missed heartbeats, under investigation
+  NODE_STATUS_DEAD        = 5;  // Confirmed unreachable, jobs being reassigned
+  NODE_STATUS_STOPPING    = 6;  // Graceful shutdown in progress
+}
+
+// Status of a job in the distributed queue.
+enum JobStatus {
+  JOB_STATUS_UNSPECIFIED = 0;
+  JOB_STATUS_QUEUED      = 1;  // Waiting for assignment
+  JOB_STATUS_ASSIGNED    = 2;  // Assigned to a worker, not yet started
+  JOB_STATUS_PROCESSING  = 3;  // Actively being processed
+  JOB_STATUS_COMPLETED   = 4;  // Successfully finished
+  JOB_STATUS_FAILED      = 5;  // Failed (may be retried)
+  JOB_STATUS_POISON      = 6;  // Failed across multiple workers, quarantined
+  JOB_STATUS_CANCELLED   = 7;  // Cancelled by operator or system
+}
+
+// Action the coordinator wants a worker to take.
+enum CoordinatorAction {
+  COORDINATOR_ACTION_UNSPECIFIED    = 0;
+  COORDINATOR_ACTION_DRAIN          = 1;  // Stop accepting new jobs, finish current
+  COORDINATOR_ACTION_SHUTDOWN       = 2;  // Shut down immediately
+  COORDINATOR_ACTION_RELOAD_CONFIG  = 3;  // Reload pipeline configurations
+  COORDINATOR_ACTION_REBALANCE      = 4;  // Participate in rebalancing
+}
+
+// ---------------------------------------------------------------------------
+// Service: HermesClusterService
+// ---------------------------------------------------------------------------
+//
+// The primary service for cluster coordination. The coordinator hosts this
+// service and workers call it. Workers also host a subset of RPCs (StealJobs)
+// for direct worker-to-worker communication during work stealing.
+
+service HermesClusterService {
+
+  // Worker registers itself with the coordinator on startup.
+  // Returns the current cluster state and fencing token.
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // Worker sends periodic heartbeat with resource metrics.
+  // Coordinator responds with ack and optional actions (DRAIN, SHUTDOWN, etc.).
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+  // Worker requests a new job when it has available capacity.
+  // Coordinator selects the best job based on affinity, load, and priority.
+  rpc RequestWork(WorkRequest) returns (WorkResponse);
+
+  // Coordinator pushes a job assignment to a specific worker.
+  // Used when the coordinator proactively assigns (e.g., after rebalance).
+  rpc AssignJob(JobAssignment) returns (AssignmentAck);
+
+  // Worker reports successful job completion with result summary.
+  rpc CompleteJob(JobCompletion) returns (CompletionAck);
+
+  // Worker reports job failure with error details and retry recommendation.
+  rpc FailJob(JobFailure) returns (FailureAck);
+
+  // Coordinator cancels a job on a worker (pipeline deactivated, etc.).
+  rpc CancelJob(JobCancellation) returns (CancellationAck);
+
+  // Idle worker steals queued jobs from an overloaded worker.
+  // Called directly worker-to-worker (not via coordinator).
+  rpc StealJobs(StealRequest) returns (StealResponse);
+
+  // Coordinator instructs a worker to drain and stop.
+  rpc DrainAndStop(DrainRequest) returns (DrainResponse);
+
+  // Worker reports aggregated metrics (plugin-level, pipeline-level).
+  rpc ReportMetrics(NodeMetrics) returns (MetricsAck);
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Node Information
+// ---------------------------------------------------------------------------
+
+// Describes a node in the cluster.
+message NodeInfo {
+  // Unique node identifier (e.g., "worker-1", "coordinator-abc12").
+  string node_id = 1;
+
+  // Node role.
+  NodeRole role = 2;
+
+  // Current node status.
+  NodeStatus status = 3;
+
+  // Host address for gRPC communication (e.g., "10.0.1.5:9090").
+  string grpc_address = 4;
+
+  // Host address for API (coordinator only, e.g., "10.0.1.5:8000").
+  string api_address = 5;
+
+  // Hermes version running on this node.
+  string hermes_version = 6;
+
+  // Node start time.
+  google.protobuf.Timestamp started_at = 7;
+
+  // List of loaded plugin names.
+  repeated string plugins_loaded = 8;
+
+  // Node capabilities / tags for affinity matching.
+  repeated string tags = 9;
+
+  // Maximum concurrent jobs this node can handle.
+  int32 max_concurrent_jobs = 10;
+}
+
+// Resource utilization snapshot reported in heartbeats.
+message ResourceMetrics {
+  // CPU usage percentage (0.0 - 100.0).
+  double cpu_percent = 1;
+
+  // Memory used in megabytes.
+  int64 memory_used_mb = 2;
+
+  // Total memory available in megabytes.
+  int64 memory_total_mb = 3;
+
+  // Disk used in gigabytes (Content Repository partition).
+  double disk_used_gb = 4;
+
+  // Total disk available in gigabytes.
+  double disk_total_gb = 5;
+
+  // Number of active (PROCESSING) jobs on this node.
+  int32 active_jobs = 6;
+
+  // Number of queued (waiting to start) jobs on this node.
+  int32 queued_jobs = 7;
+
+  // Network I/O: bytes sent since last heartbeat.
+  int64 network_bytes_sent = 8;
+
+  // Network I/O: bytes received since last heartbeat.
+  int64 network_bytes_received = 9;
+
+  // Content Repository claim count.
+  int64 content_repo_claims = 10;
+
+  // Content Repository total size in megabytes.
+  int64 content_repo_size_mb = 11;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Registration
+// ---------------------------------------------------------------------------
+
+message RegisterRequest {
+  // Node information for the registering node.
+  NodeInfo node_info = 1;
+
+  // If the node was previously registered and is reconnecting,
+  // include jobs completed during coordinator outage.
+  repeated JobCompletion completed_during_outage = 2;
+
+  // Jobs still in progress on this node.
+  repeated string in_progress_job_ids = 3;
+}
+
+message RegisterResponse {
+  // Whether registration was accepted.
+  bool accepted = 1;
+
+  // Reason for rejection (if not accepted).
+  string rejection_reason = 2;
+
+  // Current leader's fencing token.
+  int64 fencing_token = 3;
+
+  // Current cluster configuration version.
+  int32 config_version = 4;
+
+  // List of all nodes currently in the cluster.
+  repeated NodeInfo cluster_nodes = 5;
+
+  // Pipeline configurations this worker should cache.
+  repeated PipelineConfig pipeline_configs = 6;
+}
+
+// Lightweight pipeline configuration sent to workers on registration.
+message PipelineConfig {
+  string pipeline_id = 1;
+  string pipeline_name = 2;
+  int32 version = 3;
+  string config_json = 4;
+  bool active = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Heartbeat
+// ---------------------------------------------------------------------------
+
+message HeartbeatRequest {
+  // Sending node's identifier.
+  string node_id = 1;
+
+  // Heartbeat timestamp.
+  google.protobuf.Timestamp timestamp = 2;
+
+  // Current node status.
+  NodeStatus status = 3;
+
+  // Resource utilization metrics.
+  ResourceMetrics resources = 4;
+
+  // IDs of jobs currently being processed.
+  repeated string active_job_ids = 5;
+
+  // Node uptime in seconds.
+  int64 uptime_seconds = 6;
+}
+
+message HeartbeatResponse {
+  // Heartbeat acknowledged.
+  bool ack = 1;
+
+  // Current leader's fencing token (worker should reject commands
+  // from coordinators with lower tokens).
+  int64 fencing_token = 2;
+
+  // Current cluster configuration version. If higher than the worker's
+  // cached version, the worker should request updated configs.
+  int32 config_version = 3;
+
+  // Optional actions the coordinator wants the worker to perform.
+  repeated CoordinatorAction actions = 4;
+
+  // Server timestamp (for clock skew detection).
+  google.protobuf.Timestamp server_timestamp = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Job Assignment
+// ---------------------------------------------------------------------------
+
+message WorkRequest {
+  // Requesting worker's node ID.
+  string node_id = 1;
+
+  // Number of jobs the worker can accept.
+  int32 available_capacity = 2;
+
+  // If true, the worker is idle and willing to steal work.
+  bool steal_hint = 3;
+
+  // Worker's current resource metrics (for scoring).
+  ResourceMetrics resources = 4;
+}
+
+message WorkResponse {
+  // Jobs assigned to the requesting worker (may be empty if no work available).
+  repeated JobAssignment assignments = 1;
+}
+
+message JobAssignment {
+  // Unique job identifier.
+  string job_id = 1;
+
+  // Pipeline this job belongs to.
+  string pipeline_id = 2;
+
+  // Pipeline name (human-readable).
+  string pipeline_name = 3;
+
+  // Target identifier (e.g., equipment ID, data source).
+  string target_id = 4;
+
+  // Job priority (higher = more important).
+  int32 priority = 5;
+
+  // Job payload (pipeline config, parameters, etc.) as JSON.
+  string payload_json = 6;
+
+  // Lease expiration. Worker must complete or renew before this time.
+  google.protobuf.Timestamp lease_expires = 7;
+
+  // Fencing token at time of assignment.
+  int64 fencing_token = 8;
+
+  // Retry count (0 = first attempt).
+  int32 retry_count = 9;
+
+  // Maximum retries allowed for this job.
+  int32 max_retries = 10;
+
+  // Checkpoint from previous attempt (if resuming after failure).
+  string checkpoint_json = 11;
+
+  // Affinity key for sticky session routing.
+  string affinity_key = 12;
+}
+
+message AssignmentAck {
+  // Whether the worker accepted the assignment.
+  bool accepted = 1;
+
+  // Reason for rejection (worker over capacity, plugin not loaded, etc.).
+  string rejection_reason = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Job Completion
+// ---------------------------------------------------------------------------
+
+message JobCompletion {
+  // Job identifier.
+  string job_id = 1;
+
+  // Worker that completed the job.
+  string node_id = 2;
+
+  // Completion timestamp.
+  google.protobuf.Timestamp completed_at = 3;
+
+  // Result summary as JSON.
+  string result_json = 4;
+
+  // Total records processed.
+  int64 records_processed = 5;
+
+  // Total bytes processed.
+  int64 bytes_processed = 6;
+
+  // Wall-clock duration in milliseconds.
+  int64 duration_ms = 7;
+
+  // Fencing token this job was assigned under.
+  int64 fencing_token = 8;
+}
+
+message CompletionAck {
+  // Whether the completion was recorded.
+  bool recorded = 1;
+
+  // If not recorded (e.g., stale fencing token), reason.
+  string reason = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Job Failure
+// ---------------------------------------------------------------------------
+
+message JobFailure {
+  // Job identifier.
+  string job_id = 1;
+
+  // Worker that failed the job.
+  string node_id = 2;
+
+  // Failure timestamp.
+  google.protobuf.Timestamp failed_at = 3;
+
+  // Machine-readable error code (e.g., "CONNECTION_TIMEOUT", "OOM").
+  string error_code = 4;
+
+  // Human-readable error message.
+  string error_message = 5;
+
+  // Full stack trace (optional).
+  string stack_trace = 6;
+
+  // Whether the worker recommends retrying.
+  bool is_retryable = 7;
+
+  // Which pipeline step failed (COLLECT, ALGORITHM, TRANSFER).
+  string failed_step = 8;
+
+  // Checkpoint at time of failure (for partial resume).
+  string checkpoint_json = 9;
+
+  // Fencing token this job was assigned under.
+  int64 fencing_token = 10;
+}
+
+message FailureAck {
+  // Whether the failure was recorded.
+  bool recorded = 1;
+
+  // What will happen next:
+  // "RETRY" - job will be re-queued
+  // "DLQ" - job routed to dead letter queue (max retries exceeded)
+  // "POISON" - job identified as poison pill
+  string next_action = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Job Cancellation
+// ---------------------------------------------------------------------------
+
+message JobCancellation {
+  // Job identifier to cancel.
+  string job_id = 1;
+
+  // Reason for cancellation.
+  string reason = 2;
+
+  // Fencing token (coordinator's current token).
+  int64 fencing_token = 3;
+
+  // If true, cancel immediately without waiting for checkpoint.
+  bool force = 4;
+}
+
+message CancellationAck {
+  // Whether the cancellation was accepted.
+  bool accepted = 1;
+
+  // Job status at time of cancellation.
+  JobStatus status_at_cancel = 2;
+
+  // Partial checkpoint if available.
+  string checkpoint_json = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Work Stealing
+// ---------------------------------------------------------------------------
+
+message StealRequest {
+  // Node requesting the steal.
+  string requesting_node_id = 1;
+
+  // Maximum number of jobs to steal.
+  int32 max_jobs = 2;
+
+  // Fencing token (for authorization).
+  int64 fencing_token = 3;
+}
+
+message StealResponse {
+  // Jobs stolen (transferred to the requesting node).
+  repeated JobAssignment stolen_jobs = 1;
+
+  // Number of jobs remaining on the donor node after steal.
+  int32 remaining_queue_depth = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Drain and Stop
+// ---------------------------------------------------------------------------
+
+message DrainRequest {
+  // Fencing token (coordinator's current token).
+  int64 fencing_token = 1;
+
+  // Maximum time to wait for in-flight jobs to complete (seconds).
+  // After this, remaining jobs are forcefully reassigned.
+  int32 timeout_seconds = 2;
+
+  // Reason for drain (e.g., "rolling_upgrade", "operator_request").
+  string reason = 3;
+}
+
+message DrainResponse {
+  // Whether the drain was accepted.
+  bool accepted = 1;
+
+  // Number of in-flight jobs that need to complete.
+  int32 in_flight_jobs = 2;
+
+  // Estimated time to drain (seconds).
+  int32 estimated_drain_seconds = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Messages: Metrics Reporting
+// ---------------------------------------------------------------------------
+
+message NodeMetrics {
+  // Reporting node's identifier.
+  string node_id = 1;
+
+  // Reporting timestamp.
+  google.protobuf.Timestamp timestamp = 2;
+
+  // Pipeline-level metrics.
+  repeated PipelineMetric pipeline_metrics = 3;
+
+  // Plugin-level metrics.
+  repeated PluginMetric plugin_metrics = 4;
+}
+
+// Aggregated metrics for a specific pipeline on a specific node.
+message PipelineMetric {
+  string pipeline_id = 1;
+  string pipeline_name = 2;
+  int64 jobs_completed = 3;
+  int64 jobs_failed = 4;
+  int64 records_processed = 5;
+  int64 bytes_processed = 6;
+  double avg_duration_ms = 7;
+  double p99_duration_ms = 8;
+}
+
+// Aggregated metrics for a specific plugin on a specific node.
+message PluginMetric {
+  string plugin_name = 1;
+  int64 invocations = 2;
+  int64 errors = 3;
+  double avg_latency_ms = 4;
+  double p99_latency_ms = 5;
+  map<string, string> custom_metrics = 6;
+}
+
+message MetricsAck {
+  bool recorded = 1;
+}

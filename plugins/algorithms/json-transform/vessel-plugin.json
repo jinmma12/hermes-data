@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "ALGORITHM",
   "description": "Transforms JSON data using JMESPath expressions. Supports extracting, filtering, and reshaping JSON structures.",
-  "author": "vessel-core",
+  "author": "hermes-core",
   "license": "Apache-2.0",
   "runtime": "python",
   "entrypoint": "main.py",

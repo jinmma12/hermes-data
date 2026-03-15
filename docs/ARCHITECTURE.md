@@ -1,9 +1,9 @@
-# Vessel - Architecture & Design Specification
+# Hermes - Architecture & Design Specification
 
-> **Vessel**: A lightweight, user-friendly data processing platform with
+> **Hermes**: A lightweight, user-friendly data processing platform with
 > per-item tracking, visual recipe management, and first-class reprocessing.
 >
-> "Data flows through Vessel like cargo through a ship —
+> "Data flows through Hermes like cargo through a ship —
 > every item tracked, every journey recorded, every route configurable."
 
 ---
@@ -12,22 +12,22 @@
 
 | Item | Value |
 |---|---|
-| **Name** | Vessel |
+| **Name** | Hermes |
 | **Tagline** | "Carry your data. Track every item." |
 | **License** | Apache 2.0 |
 | **Position** | Between NiFi (heavy/powerful) and Singer (lightweight/limited) |
 | **Target User** | Non-SW engineers who need to configure data collection & processing |
 
-### 1.1 What Vessel Is NOT
+### 1.1 What Hermes Is NOT
 
 - NOT a replacement for NiFi — can use NiFi as an execution backend
 - NOT a DAG orchestrator (Airflow/Dagster territory)
 - NOT a streaming platform (Kafka territory)
 - NOT limited to any industry domain
 
-### 1.2 Why Vessel Exists
+### 1.2 Why Hermes Exists
 
-| Existing Tool | Gap Vessel Fills |
+| Existing Tool | Gap Hermes Fills |
 |---|---|
 | Apache NiFi | Too heavy (JVM 2GB+), complex UI, Java-only plugins |
 | Airbyte | EL only (no algorithm/processing), Docker-per-connector overhead |
@@ -36,7 +36,7 @@
 | Benthos | No UI, no item tracking, Go-only plugins |
 | Singer/Meltano | No UI, no orchestration, quality inconsistency |
 
-**Vessel's unique value**: NiFi-grade per-item tracking + n8n-grade visual UI + first-class reprocessing — in a lightweight package.
+**Hermes's unique value**: NiFi-grade per-item tracking + n8n-grade visual UI + first-class reprocessing — in a lightweight package.
 
 ---
 
@@ -47,7 +47,7 @@
    → SW 개발자가 아닌 운영자가 Web UI에서 모든 설정 가능
 
 2. EVERY ITEM TRACKED
-   → 개별 WorkItem 단위로 수집-처리-전송 전 과정 추적
+   → 개별 Job 단위로 수집-처리-전송 전 과정 추적
 
 3. RECIPE AS FIRST CLASS
    → Algorithm 파라미터, 수집 설정 모두 버전 관리되는 Recipe
@@ -71,7 +71,7 @@
 │                        VESSEL WEB UI (React)                        │
 │                                                                     │
 │  ┌─────────────┐ ┌─────────────┐ ┌───────────┐ ┌────────────────┐  │
-│  │ Pipeline     │ │ Recipe      │ │ Monitor   │ │ WorkItem       │  │
+│  │ Pipeline     │ │ Recipe      │ │ Monitor   │ │ Job       │  │
 │  │ Designer     │ │ Editor      │ │ Dashboard │ │ Explorer       │  │
 │  │              │ │             │ │           │ │                │  │
 │  │ n8n-style    │ │ Form-based  │ │ Real-time │ │ Search/Filter  │  │
@@ -107,13 +107,13 @@
 │  │              ConditionEvaluator                               │   │
 │  │                    │                                         │   │
 │  │                    ▼                                          │   │
-│  │              WorkItem Created                                │   │
+│  │              Job Created                                │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 │                                                                     │
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │                Processing Orchestrator                        │   │
 │  │                                                               │   │
-│  │  WorkItem ──→ Snapshot ──→ Step Execution ──→ Result          │   │
+│  │  Job ──→ Snapshot ──→ Step Execution ──→ Result          │   │
 │  │                                                               │   │
 │  │  ┌─────────────────────────────────────────────────────────┐  │   │
 │  │  │              Execution Dispatcher                        │  │   │
@@ -235,22 +235,22 @@
 │    ├── lastHeartbeatAt: 2026-03-15 14:32:10          │
 │    ├── lastPolledAt: 2026-03-15 14:30:00             │
 │    │                                                  │
-│    └── Detected WorkItems:                            │
-│         ├── WorkItem #1001 (order_batch_20260315_001) │
-│         ├── WorkItem #1002 (order_batch_20260315_002) │
-│         └── WorkItem #1003 (order_batch_20260315_003) │
+│    └── Detected Jobs:                            │
+│         ├── Job #1001 (order_batch_20260315_001) │
+│         ├── Job #1002 (order_batch_20260315_002) │
+│         └── Job #1003 (order_batch_20260315_003) │
 └──────────────────────────────────────────────────────┘
 ```
 
 ### Layer 4: Execution Layer — "What HAS happened"
 
-WorkItem 단위 처리 이력. **Vessel의 최대 차별점.**
+Job 단위 처리 이력. **Hermes의 최대 차별점.**
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │              EXECUTION LAYER                                  │
 │                                                               │
-│  WorkItem #1002                                               │
+│  Job #1002                                               │
 │    ├── sourceKey: "order_batch_20260315_002"                  │
 │    ├── detectedAt: 2026-03-15 10:15:00                       │
 │    ├── status: FAILED                                         │
@@ -367,12 +367,12 @@ WorkItem 단위 처리 이력. **Vessel의 최대 차별점.**
 └────────┬─────────────────────┘
          │ 1:N
 ┌────────▼─────────────────────┐
-│ PipelineStep                  │
+│ PipelineStage                  │
 │──────────────────────────────│
 │ id                       PK  │
 │ pipeline_instance_id     FK  │
-│ step_order                   │  ◄── 1, 2, 3...
-│ step_type                    │  ◄── COLLECT | ALGORITHM | TRANSFER
+│ stage_order                   │  ◄── 1, 2, 3...
+│ stage_type                    │  ◄── COLLECT | ALGORITHM | TRANSFER
 │ ref_type                     │  ◄── COLLECTOR | ALGORITHM | TRANSFER
 │ ref_id                   FK  │  ◄── → Instance ID
 │ is_enabled                   │
@@ -396,7 +396,7 @@ WorkItem 단위 처리 이력. **Vessel의 최대 차별점.**
 └────────┬─────────────────────┘
          │ 1:N
 ┌────────▼─────────────────────┐
-│ WorkItem                      │
+│ Job                      │
 │──────────────────────────────│
 │ id                       PK  │
 │ pipeline_activation_id   FK  │
@@ -413,10 +413,10 @@ WorkItem 단위 처리 이력. **Vessel의 최대 차별점.**
 └────────┬─────────────────────┘
          │ 1:N
 ┌────────▼─────────────────────┐
-│ WorkItemExecution             │
+│ JobExecution             │
 │──────────────────────────────│
 │ id                       PK  │
-│ work_item_id             FK  │
+│ job_id             FK  │
 │ execution_no                 │  ◄── 1, 2, 3...
 │ trigger_type                 │  ◄── INITIAL | RETRY | REPROCESS
 │ trigger_source               │  ◄── SYSTEM | USER:john | SCHEDULE
@@ -428,13 +428,13 @@ WorkItem 단위 처리 이력. **Vessel의 최대 차별점.**
 └────────┬─────────────────────┘
          │ 1:N                          1:1
 ┌────────▼─────────────────────┐  ┌──────────────────────────┐
-│ WorkItemStepExecution        │  │ ExecutionSnapshot         │
+│ JobStepExecution        │  │ ExecutionSnapshot         │
 │──────────────────────────────│  │──────────────────────────│
 │ id                       PK  │  │ id                   PK  │
 │ execution_id             FK  │  │ execution_id         FK  │
-│ pipeline_step_id         FK  │  │ pipeline_config      JSONB
-│ step_type                    │  │ collector_config     JSONB
-│ step_order                   │  │ algorithm_config     JSONB
+│ pipeline_stage_id         FK  │  │ pipeline_config      JSONB
+│ stage_type                    │  │ collector_config     JSONB
+│ stage_order                   │  │ algorithm_config     JSONB
 │ status                       │  │ transfer_config      JSONB
 │ started_at                   │  │ snapshot_hash            │
 │ ended_at                     │  │ created_at               │
@@ -450,7 +450,7 @@ WorkItem 단위 처리 이력. **Vessel의 최대 차별점.**
 │ ReprocessRequest              │
 │──────────────────────────────│
 │ id                       PK  │
-│ work_item_id             FK  │
+│ job_id             FK  │
 │ requested_by                 │  ◄── "operator:kim"
 │ requested_at                 │
 │ reason                       │  ◄── "Recipe threshold 변경 후 재처리"
@@ -458,7 +458,7 @@ WorkItem 단위 처리 이력. **Vessel의 최대 차별점.**
 │ use_latest_recipe            │  ◄── true: 최신 Recipe / false: 원래 Snapshot
 │ status                       │  ◄── PENDING | APPROVED | EXECUTING | DONE | REJECTED
 │ approved_by                  │
-│ execution_id             FK  │  ◄── 생성된 WorkItemExecution
+│ execution_id             FK  │  ◄── 생성된 JobExecution
 └──────────────────────────────┘
 
 ┌──────────────────────────────┐
@@ -481,18 +481,18 @@ WorkItem 단위 처리 이력. **Vessel의 최대 차별점.**
 
 ### 6.1 Plugin Protocol (inspired by Singer + Airbyte Protocol)
 
-Vessel plugins communicate via **JSON messages over stdin/stdout**.
+Hermes plugins communicate via **JSON messages over stdin/stdout**.
 Any language can implement a plugin.
 
 ```
 VESSEL PLUGIN PROTOCOL v1
 ─────────────────────────
 
-Direction: Vessel Core → Plugin (stdin)
+Direction: Hermes Core → Plugin (stdin)
   { "type": "CONFIGURE", "config": {...}, "context": {...} }
   { "type": "EXECUTE",   "input": {...} }
 
-Direction: Plugin → Vessel Core (stdout)
+Direction: Plugin → Hermes Core (stdout)
   { "type": "LOG",    "level": "INFO", "message": "..." }
   { "type": "OUTPUT", "data": {...} }
   { "type": "ERROR",  "code": "...", "message": "..." }
@@ -507,7 +507,7 @@ Exit codes:
 
 ### 6.2 Plugin Manifest
 
-Each plugin ships with a `vessel-plugin.json`:
+Each plugin ships with a `hermes-plugin.json`:
 
 ```json
 {
@@ -515,7 +515,7 @@ Each plugin ships with a `vessel-plugin.json`:
   "version": "1.0.0",
   "type": "COLLECTOR",
   "description": "Collects data from REST APIs",
-  "author": "vessel-community",
+  "author": "hermes-community",
   "license": "Apache-2.0",
   "runtime": "python",
   "entrypoint": "main.py",
@@ -552,7 +552,7 @@ Each plugin ships with a `vessel-plugin.json`:
 ┌─────────────┬────────────────────────────────────────────────────┐
 │ Type        │ How it works                                       │
 ├─────────────┼────────────────────────────────────────────────────┤
-│ PLUGIN      │ Subprocess: vessel invokes entrypoint,             │
+│ PLUGIN      │ Subprocess: hermes invokes entrypoint,             │
 │             │ communicates via stdin/stdout JSON protocol         │
 ├─────────────┼────────────────────────────────────────────────────┤
 │ SCRIPT      │ Run arbitrary script (bash, python, etc.)          │
@@ -567,7 +567,7 @@ Each plugin ships with a `vessel-plugin.json`:
 │ NIFI_FLOW   │ Trigger NiFi process group via REST API            │
 │             │ Poll for completion, retrieve output               │
 ├─────────────┼────────────────────────────────────────────────────┤
-│ INTERNAL    │ Built-in executor (compiled into Vessel core)      │
+│ INTERNAL    │ Built-in executor (compiled into Hermes core)      │
 │             │ For high-performance built-in collectors           │
 └─────────────┴────────────────────────────────────────────────────┘
 ```
@@ -578,7 +578,7 @@ Each plugin ships with a `vessel-plugin.json`:
 
 ### 7.1 Concept
 
-"Recipe"는 Vessel의 핵심 UX 개념.
+"Recipe"는 Hermes의 핵심 UX 개념.
 **SW 개발자가 Definition(스키마)을 정의하면, 운영자가 Recipe(값)을 채운다.**
 
 ```
@@ -636,7 +636,7 @@ Web UI에서:
 ### 7.3 Recipe at Execution Time
 
 실행 시 Recipe가 ExecutionSnapshot으로 복사됨.
-→ 나중에 Recipe를 바꿔도, "이 WorkItem은 당시 어떤 설정으로 돌았는지" 추적 가능.
+→ 나중에 Recipe를 바꿔도, "이 Job은 당시 어떤 설정으로 돌았는지" 추적 가능.
 
 ---
 
@@ -692,7 +692,7 @@ Web UI에서:
 │  ◉ 설비C 로그 수집        ERROR     ♥ 30m ago     56 items │
 │                                                              │
 │──────────────────────────────────────────────────────────────│
-│  Recent WorkItems                              [View All →] │
+│  Recent Jobs                              [View All →] │
 │                                                              │
 │  #1003  order_batch_0315_003   ✅ COMPLETED  2.1s   14:30  │
 │  #1002  order_batch_0315_002   ❌ FAILED     0.8s   14:15  │
@@ -702,11 +702,11 @@ Web UI에서:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 8.3 WorkItem Explorer
+### 8.3 Job Explorer
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  WorkItem #1002                                              │
+│  Job #1002                                              │
 │──────────────────────────────────────────────────────────────│
 │  Source: order_batch_20260315_002                            │
 │  Pipeline: A사 주문 모니터링                                 │
@@ -745,7 +745,7 @@ Web UI에서:
 
 ## 9. NiFi Integration (Optional Backend)
 
-Vessel은 NiFi 없이 독립 실행되지만, NiFi가 있으면 활용 가능.
+Hermes은 NiFi 없이 독립 실행되지만, NiFi가 있으면 활용 가능.
 
 ```
 ┌──────────────────────────────────────────┐
@@ -753,7 +753,7 @@ Vessel은 NiFi 없이 독립 실행되지만, NiFi가 있으면 활용 가능.
 │                                           │
 │  ExecutionDispatcher                      │
 │    │                                      │
-│    ├── PLUGIN → Vessel plugin protocol    │  ◄── NiFi 없이 독립 실행
+│    ├── PLUGIN → Hermes plugin protocol    │  ◄── NiFi 없이 독립 실행
 │    ├── SCRIPT → subprocess                │
 │    ├── HTTP   → REST call                 │
 │    │                                      │
@@ -777,14 +777,14 @@ Vessel은 NiFi 없이 독립 실행되지만, NiFi가 있으면 활용 가능.
 │  - 300+ Processors       │
 │  - Data Provenance       │
 │                          │
-│  Vessel uses NiFi for:   │
+│  Hermes uses NiFi for:   │
 │  - Heavy-duty collection │
 │  - Complex routing       │
 │  - Distributed execution │
 └─────────────────────────┘
 ```
 
-**NiFi 연동 시나리오**: 대량 파일 수집은 NiFi에게 맡기고, Vessel은 WorkItem 추적 + Recipe 관리 + 재처리만 담당.
+**NiFi 연동 시나리오**: 대량 파일 수집은 NiFi에게 맡기고, Hermes은 Job 추적 + Recipe 관리 + 재처리만 담당.
 
 ---
 
@@ -850,20 +850,20 @@ GET    /api/v1/pipelines/{id}/activations    # history
 GET    /api/v1/pipelines/{id}/status         # current state
 ```
 
-### 10.4 WorkItem APIs
+### 10.4 Job APIs
 
 ```
-# WorkItems
-GET    /api/v1/work-items                    # list with filters
-GET    /api/v1/work-items/{id}
-GET    /api/v1/work-items/{id}/executions
-GET    /api/v1/work-items/{id}/executions/{execId}
-GET    /api/v1/work-items/{id}/executions/{execId}/steps
-GET    /api/v1/work-items/{id}/executions/{execId}/snapshot
-GET    /api/v1/work-items/{id}/executions/{execId}/logs
+# Jobs
+GET    /api/v1/jobs                    # list with filters
+GET    /api/v1/jobs/{id}
+GET    /api/v1/jobs/{id}/executions
+GET    /api/v1/jobs/{id}/executions/{execId}
+GET    /api/v1/jobs/{id}/executions/{execId}/steps
+GET    /api/v1/jobs/{id}/executions/{execId}/snapshot
+GET    /api/v1/jobs/{id}/executions/{execId}/logs
 
 # Reprocess
-POST   /api/v1/work-items/{id}/reprocess
+POST   /api/v1/jobs/{id}/reprocess
   Body: {
     "reason": "Recipe threshold 변경",
     "start_from_step": 2,
@@ -871,9 +871,9 @@ POST   /api/v1/work-items/{id}/reprocess
   }
 
 # Bulk operations
-POST   /api/v1/work-items/bulk-reprocess
+POST   /api/v1/jobs/bulk-reprocess
   Body: {
-    "work_item_ids": [1002, 1005, 1008],
+    "job_ids": [1002, 1005, 1008],
     "reason": "Algorithm 버그 수정 후 일괄 재처리"
   }
 ```
@@ -882,11 +882,11 @@ POST   /api/v1/work-items/bulk-reprocess
 
 ```
 WS /api/v1/ws/pipeline/{id}/events
-  → { "type": "WORKITEM_CREATED", "workItem": {...} }
+  → { "type": "WORKITEM_CREATED", "job": {...} }
   → { "type": "STEP_COMPLETED", "stepExecution": {...} }
   → { "type": "PIPELINE_HEARTBEAT", "activation": {...} }
 
-WS /api/v1/ws/work-items/{id}/logs
+WS /api/v1/ws/jobs/{id}/logs
   → { "type": "LOG", "event": {...} }  (live streaming)
 ```
 
@@ -909,23 +909,23 @@ async def run_monitoring(activation: PipelineActivation):
 
         for event in events:
             # 2. Evaluate conditions
-            if condition_evaluator.should_create_work_item(event):
+            if condition_evaluator.should_create_job(event):
 
                 # 3. Dedup check
                 dedup_key = generate_dedup_key(event)
-                if not work_item_repo.exists(dedup_key):
+                if not job_repo.exists(dedup_key):
 
-                    # 4. Create WorkItem
-                    work_item = WorkItem(
+                    # 4. Create Job
+                    job = Job(
                         source_type=event.type,
                         source_key=event.key,
                         dedup_key=dedup_key,
                         status=DETECTED
                     )
-                    work_item_repo.save(work_item)
+                    job_repo.save(job)
 
                     # 5. Queue for processing
-                    await processing_queue.enqueue(work_item.id)
+                    await processing_queue.enqueue(job.id)
 
         # 6. Update heartbeat
         activation.last_heartbeat_at = now()
@@ -936,21 +936,21 @@ async def run_monitoring(activation: PipelineActivation):
         await sleep(pipeline.monitoring_config.interval)
 ```
 
-### 11.2 Processing Flow (Per WorkItem)
+### 11.2 Processing Flow (Per Job)
 
 ```python
 # Pseudocode: ProcessingOrchestrator
 
-async def process_work_item(work_item_id: int, trigger: TriggerType,
+async def process_job(job_id: int, trigger: TriggerType,
                             start_from_step: int = 1,
                             use_latest_recipe: bool = True):
-    work_item = work_item_repo.get(work_item_id)
-    pipeline = pipeline_repo.get(work_item.pipeline_instance_id)
-    steps = pipeline_step_repo.get_ordered(pipeline.id)
+    job = job_repo.get(job_id)
+    pipeline = pipeline_repo.get(job.pipeline_instance_id)
+    steps = pipeline_stage_repo.get_ordered(pipeline.id)
 
     # 1. Create execution record
-    execution = WorkItemExecution(
-        work_item_id=work_item.id,
+    execution = JobExecution(
+        job_id=job.id,
         trigger_type=trigger,
         status=RUNNING
     )
@@ -963,18 +963,18 @@ async def process_work_item(work_item_id: int, trigger: TriggerType,
     # 3. Execute steps in order
     previous_output = None
     for step in steps:
-        if step.step_order < start_from_step:
+        if step.stage_order < start_from_step:
             # Use cached output from previous successful execution
-            previous_output = get_cached_step_output(work_item, step)
+            previous_output = get_cached_step_output(job, step)
             continue
 
         if not step.is_enabled:
             continue
 
-        step_execution = WorkItemStepExecution(
+        step_execution = JobStepExecution(
             execution_id=execution.id,
-            pipeline_step_id=step.id,
-            step_type=step.step_type,
+            pipeline_stage_id=step.id,
+            stage_type=step.stage_type,
             status=RUNNING
         )
         step_execution_repo.save(step_execution)
@@ -988,8 +988,8 @@ async def process_work_item(work_item_id: int, trigger: TriggerType,
                 config=config.resolved_config,
                 input_data=previous_output,
                 context={
-                    "work_item_id": work_item.id,
-                    "step_type": step.step_type,
+                    "job_id": job.id,
+                    "stage_type": step.stage_type,
                     "execution_id": execution.id
                 }
             )
@@ -1020,8 +1020,8 @@ async def process_work_item(work_item_id: int, trigger: TriggerType,
         execution.status = COMPLETED
     execution.ended_at = now()
     execution_repo.update(execution)
-    work_item.status = execution.status
-    work_item_repo.update(work_item)
+    job.status = execution.status
+    job_repo.update(job)
 ```
 
 ---
@@ -1080,26 +1080,26 @@ async def process_work_item(work_item_id: int, trigger: TriggerType,
 ## 13. Project Structure
 
 ```
-vessel/
+hermes/
 ├── docs/
 │   ├── ARCHITECTURE.md          ← this file
 │   ├── PLUGIN_PROTOCOL.md       ← plugin development guide
 │   └── API.md                   ← API reference
 │
 ├── backend/                     ← Python FastAPI (primary)
-│   ├── vessel/
+│   ├── hermes/
 │   │   ├── api/                 ← REST endpoints
 │   │   │   ├── definitions.py
 │   │   │   ├── instances.py
 │   │   │   ├── pipelines.py
-│   │   │   ├── work_items.py
+│   │   │   ├── jobs.py
 │   │   │   └── websocket.py
 │   │   ├── domain/              ← entities & business logic
 │   │   │   ├── models/
 │   │   │   │   ├── definition.py
 │   │   │   │   ├── instance.py
 │   │   │   │   ├── pipeline.py
-│   │   │   │   ├── work_item.py
+│   │   │   │   ├── job.py
 │   │   │   │   ├── execution.py
 │   │   │   │   └── recipe.py
 │   │   │   └── services/
@@ -1145,7 +1145,7 @@ vessel/
 ├── plugins/                     ← built-in plugins
 │   ├── collectors/
 │   │   ├── rest-api/
-│   │   │   ├── vessel-plugin.json
+│   │   │   ├── hermes-plugin.json
 │   │   │   └── main.py
 │   │   ├── file-watcher/
 │   │   ├── db-query/
@@ -1178,7 +1178,7 @@ vessel/
 [x] Pipeline CRUD with Step ordering
 [x] Pipeline Activation (start/stop)
 [x] Monitoring Engine (file watcher + API poller)
-[x] WorkItem creation + dedup
+[x] Job creation + dedup
 [x] Processing Orchestrator (sequential step execution)
 [x] Execution Dispatcher (PLUGIN + SCRIPT types)
 [x] ExecutionSnapshot capture
@@ -1192,7 +1192,7 @@ vessel/
 [ ] Pipeline Designer (React Flow drag-and-drop)
 [ ] Recipe Editor (react-jsonschema-form with custom widgets)
 [ ] Monitor Dashboard (real-time WebSocket)
-[ ] WorkItem Explorer (search, filter, timeline view)
+[ ] Job Explorer (search, filter, timeline view)
 [ ] Recipe diff/compare view
 ```
 
@@ -1232,14 +1232,14 @@ vessel/
                          │
             Benthos ●    │         ● n8n
                          │
-            Singer ●     │    ★ Vessel
+            Singer ●     │    ★ Hermes
                          │    (here)
            Telegraf ●    │
                          │
                     Lightweight
 ```
 
-**Vessel's sweet spot**:
+**Hermes's sweet spot**:
 - Lighter than NiFi, richer UI than Benthos
 - Per-item tracking that nobody else offers (except NiFi)
 - Recipe management for non-developers

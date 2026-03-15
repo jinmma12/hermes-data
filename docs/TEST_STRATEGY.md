@@ -1,6 +1,6 @@
-# Vessel Test Strategy
+# Hermes Test Strategy
 
-> Comprehensive test plan informed by research into Airbyte, Dagster, Prefect, n8n, and Redpanda Connect testing patterns, tailored to Vessel's unique features.
+> Comprehensive test plan informed by research into Airbyte, Dagster, Prefect, n8n, and Redpanda Connect testing patterns, tailored to Hermes's unique features.
 
 ---
 
@@ -11,7 +11,7 @@
 - **Connector Development Kit (CDK)** provides a base test class (`SourceAcceptanceTest`) that every connector must pass. Tests are auto-generated from a `acceptance-test-config.yml` declaring expected streams, schemas, and connection specifications.
 - **Standard Acceptance Tests (SAT)** run against a real or mocked source and verify: `spec()` returns valid JSON Schema, `check()` succeeds with valid config, `discover()` returns at least one stream, `read()` produces records matching the declared schema.
 - **Unit tests** per connector use `conftest.py` with pytest fixtures providing mock HTTP responses (via `responses` or `requests_mock`).
-- **Key takeaway for Vessel**: Build a **Plugin Acceptance Test** harness that validates any plugin against the Vessel Plugin Protocol contract automatically.
+- **Key takeaway for Hermes**: Build a **Plugin Acceptance Test** harness that validates any plugin against the Hermes Plugin Protocol contract automatically.
 
 ### 1.2 Dagster
 
@@ -19,7 +19,7 @@
 - **Direct invocation testing**: ops and assets are called as plain Python functions with a mock `build_op_context()` / `build_asset_context()`. No server required.
 - **`dagster._check`**: internal runtime type checking module used pervasively.
 - **`environments/`** directory provides per-backend test configurations.
-- **Key takeaway for Vessel**: Domain services (PipelineManager, RecipeEngine) should be testable via direct invocation with an injected AsyncSession -- already the case in Vessel's architecture.
+- **Key takeaway for Hermes**: Domain services (PipelineManager, RecipeEngine) should be testable via direct invocation with an injected AsyncSession -- already the case in Hermes's architecture.
 
 ### 1.3 Prefect
 
@@ -27,21 +27,21 @@
 - **`conftest.py` fixtures**: `generate_test_database_connection_url` creates worker-specific databases; `safety_check_settings` ensures tests use isolated settings; `reset_registered_blocks` cleans test state.
 - **Service filtering**: `--exclude-services`, `--only-service` pytest flags to skip tests requiring Docker, external APIs, etc.
 - **Reliability tests**: `engine/reliability/` directory with dedicated long-running and chaos tests.
-- **Key takeaway for Vessel**: Build a test database fixture that creates isolated PostgreSQL databases per test session. Add `--slow` / `--integration` markers.
+- **Key takeaway for Hermes**: Build a test database fixture that creates isolated PostgreSQL databases per test session. Add `--slow` / `--integration` markers.
 
 ### 1.4 n8n
 
 - **`createMockExecuteFunction` helper**: Factory that generates mock `IExecuteFunctions` for unit testing any node without a running workflow engine. Parameterized by node config and continue-on-fail flag.
 - **Workflow JSON fixtures**: Integration tests load workflow JSON files, execute them via a test runner, and assert on output data.
 - **Dedicated `packages/testing`** package shares test utilities across the monorepo.
-- **Key takeaway for Vessel**: Build a `create_mock_plugin_context()` helper and a workflow-JSON-based scenario runner.
+- **Key takeaway for Hermes**: Build a `create_mock_plugin_context()` helper and a workflow-JSON-based scenario runner.
 
 ### 1.5 Redpanda Connect (Benthos)
 
 - **`*_test.go` files** co-located with source in each `internal/impl/<component>/` directory.
 - **Integration tests** use build tags (`//go:build integration`) and require real services (Kafka, Redis, etc.) via docker-compose.
 - **Processor contract tests**: A generic test harness validates that any processor implementation conforms to the expected interface (input batches in, output batches out, proper error propagation).
-- **Key takeaway for Vessel**: Co-locate plugin-specific tests with plugin directories. Build a generic processor contract test.
+- **Key takeaway for Hermes**: Co-locate plugin-specific tests with plugin directories. Build a generic processor contract test.
 
 ---
 
@@ -56,13 +56,13 @@ backend/
       __init__.py
       db.py                        # Database setup/teardown, test session
       plugin.py                    # Mock plugin helpers, protocol test utilities
-      pipeline.py                  # Pipeline + WorkItem builder helpers
+      pipeline.py                  # Pipeline + Job builder helpers
       assertions.py                # Custom assertion helpers
 
     # --- Layer 1: Unit Tests (no DB, no subprocess) ---
     unit/
       __init__.py
-      test_plugin_protocol.py      # VesselMessage serialization/deserialization
+      test_plugin_protocol.py      # HermesMessage serialization/deserialization
       test_plugin_registry.py      # PluginManifest parsing, registry CRUD
       test_recipe_diff.py          # RecipeDiff computation (pure logic)
       test_config_validation.py    # JSON Schema validation
@@ -74,7 +74,7 @@ backend/
       __init__.py
       test_recipe_engine.py        # Create/publish/rollback/compare recipes
       test_pipeline_manager.py     # CRUD, validation, activate/deactivate
-      test_work_item_lifecycle.py  # WorkItem state machine transitions
+      test_job_lifecycle.py  # Job state machine transitions
       test_reprocess_engine.py     # Reprocess request workflow
       test_snapshot_service.py     # Execution snapshot capture/restore
       test_dedup_service.py        # Dedup key logic
@@ -102,22 +102,22 @@ backend/
     fixtures/
       plugins/
         echo-plugin/
-          vessel-plugin.json
+          hermes-plugin.json
           main.py                  # Echoes input as output
         slow-plugin/
-          vessel-plugin.json
+          hermes-plugin.json
           main.py                  # Sleeps N seconds (timeout testing)
         error-plugin/
-          vessel-plugin.json
+          hermes-plugin.json
           main.py                  # Always returns ERROR
         multi-output-plugin/
-          vessel-plugin.json
+          hermes-plugin.json
           main.py                  # Emits multiple OUTPUT messages
         crash-plugin/
-          vessel-plugin.json
+          hermes-plugin.json
           main.py                  # Exits with non-zero code
         stateful-plugin/
-          vessel-plugin.json
+          hermes-plugin.json
           main.py                  # Tracks invocation count (idempotency testing)
       workflows/
         simple_pipeline.json       # 1 collector + 1 algorithm + 1 transfer
@@ -142,7 +142,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
-from vessel.domain.models.base import Base
+from hermes.domain.models.base import Base
 
 
 # ---------- Database ----------
@@ -190,7 +190,7 @@ async def db(engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture
 def plugin_registry(tmp_path):
     """Registry pre-loaded with test fixture plugins."""
-    from vessel.plugins.registry import PluginRegistry
+    from hermes.plugins.registry import PluginRegistry
     registry = PluginRegistry()
     fixtures_dir = Path(__file__).parent / "fixtures" / "plugins"
     registry.discover_plugins(fixtures_dir)
@@ -203,14 +203,14 @@ def plugin_registry(tmp_path):
 def make_pipeline(db):
     """Factory fixture for creating test pipelines with steps."""
     async def _make(name="test-pipeline", steps=None, activate=False):
-        from vessel.domain.services.pipeline_manager import PipelineManager
+        from hermes.domain.services.pipeline_manager import PipelineManager
         mgr = PipelineManager(db)
         pipeline = await mgr.create_pipeline(
             name=name, monitoring_type="API_POLL"
         )
         if steps:
             for i, step_cfg in enumerate(steps, 1):
-                await mgr.add_step(pipeline.id, **step_cfg, step_order=i)
+                await mgr.add_step(pipeline.id, **step_cfg, stage_order=i)
         if activate:
             await mgr.activate_pipeline(pipeline.id)
         await db.flush()
@@ -228,7 +228,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 
-def make_work_item(
+def make_job(
     pipeline_instance_id: uuid.UUID | None = None,
     pipeline_activation_id: uuid.UUID | None = None,
     source_key: str = "test-file.csv",
@@ -236,7 +236,7 @@ def make_work_item(
     dedup_key: str | None = None,
     status: str = "DETECTED",
 ) -> dict[str, Any]:
-    """Return kwargs dict for WorkItem construction."""
+    """Return kwargs dict for Job construction."""
     return {
         "pipeline_instance_id": pipeline_instance_id or uuid.uuid4(),
         "pipeline_activation_id": pipeline_activation_id or uuid.uuid4(),
@@ -288,7 +288,7 @@ def make_recipe_config(
 ### 3.3 Plugin Test Helpers (helpers/plugin.py)
 
 ```python
-"""Helpers for testing the Vessel Plugin Protocol.
+"""Helpers for testing the Hermes Plugin Protocol.
 
 Inspired by n8n's createMockExecuteFunction and Airbyte's SAT pattern.
 """
@@ -297,7 +297,7 @@ import io
 import json
 from typing import Any
 
-from vessel.plugins.protocol import VesselMessage, PluginProtocol
+from hermes.plugins.protocol import HermesMessage, PluginProtocol
 
 
 class MockPluginStream:
@@ -313,26 +313,26 @@ class MockPluginStream:
     """
 
     def __init__(self):
-        self._messages: list[VesselMessage] = []
+        self._messages: list[HermesMessage] = []
 
     def add_output(self, data: Any) -> "MockPluginStream":
-        self._messages.append(VesselMessage.output(data))
+        self._messages.append(HermesMessage.output(data))
         return self
 
     def add_log(self, message: str, level: str = "INFO") -> "MockPluginStream":
-        self._messages.append(VesselMessage.log(message, level))
+        self._messages.append(HermesMessage.log(message, level))
         return self
 
     def add_error(self, message: str, code: str = "TEST_ERROR") -> "MockPluginStream":
-        self._messages.append(VesselMessage.error(message, code))
+        self._messages.append(HermesMessage.error(message, code))
         return self
 
     def add_status(self, progress: float) -> "MockPluginStream":
-        self._messages.append(VesselMessage.status(progress))
+        self._messages.append(HermesMessage.status(progress))
         return self
 
     def add_done(self, summary: dict | None = None) -> "MockPluginStream":
-        self._messages.append(VesselMessage.done(summary))
+        self._messages.append(HermesMessage.done(summary))
         return self
 
     def as_readable(self) -> io.StringIO:
@@ -341,15 +341,15 @@ class MockPluginStream:
 
 
 def capture_plugin_stdin(config: dict, input_data: Any) -> str:
-    """Generate the stdin content that Vessel Core would send to a plugin."""
+    """Generate the stdin content that Hermes Core would send to a plugin."""
     stream = io.StringIO()
-    PluginProtocol.send_message(VesselMessage.configure(config), stream)
-    PluginProtocol.send_message(VesselMessage.execute(input_data), stream)
+    PluginProtocol.send_message(HermesMessage.configure(config), stream)
+    PluginProtocol.send_message(HermesMessage.execute(input_data), stream)
     return stream.getvalue()
 
 
 class PluginAcceptanceChecker:
-    """Generic acceptance test for any Vessel plugin.
+    """Generic acceptance test for any Hermes plugin.
 
     Inspired by Airbyte's Standard Acceptance Tests.
     Validates that a plugin:
@@ -390,30 +390,30 @@ class PluginAcceptanceChecker:
 ```python
 # test_plugin_protocol.py
 
-class TestVesselMessage:
+class TestHermesMessage:
     def test_roundtrip_serialization(self):
-        msg = VesselMessage.output({"key": "value"})
+        msg = HermesMessage.output({"key": "value"})
         json_str = msg.to_json()
-        restored = VesselMessage.from_json(json_str)
+        restored = HermesMessage.from_json(json_str)
         assert restored.type == MessageType.OUTPUT
         assert restored.data["data"] == {"key": "value"}
 
     def test_rejects_empty_line(self):
         with pytest.raises(ValueError, match="Empty message"):
-            VesselMessage.from_json("")
+            HermesMessage.from_json("")
 
     def test_rejects_missing_type(self):
         with pytest.raises(ValueError, match="missing required 'type'"):
-            VesselMessage.from_json('{"data": "no type"}')
+            HermesMessage.from_json('{"data": "no type"}')
 
     def test_rejects_unknown_type(self):
         with pytest.raises(ValueError, match="Unknown message type"):
-            VesselMessage.from_json('{"type": "INVALID"}')
+            HermesMessage.from_json('{"type": "INVALID"}')
 
     def test_status_clamps_progress(self):
-        msg = VesselMessage.status(1.5)
+        msg = HermesMessage.status(1.5)
         assert msg.data["progress"] == 1.0
-        msg2 = VesselMessage.status(-0.5)
+        msg2 = HermesMessage.status(-0.5)
         assert msg2.data["progress"] == 0.0
 
 
@@ -607,8 +607,8 @@ class TestPipelineManager:
         pipeline = await mgr.create_pipeline("P", "API_POLL")
         s1 = await mgr.add_step(pipeline.id, "COLLECT", "COLLECTOR", seed_instances["collector"].id)
         s2 = await mgr.add_step(pipeline.id, "ALGORITHM", "ALGORITHM", seed_instances["algorithm"].id)
-        assert s1.step_order == 1
-        assert s2.step_order == 2
+        assert s1.stage_order == 1
+        assert s2.stage_order == 2
 
     async def test_reorder_steps(self, db, seed_instances):
         mgr = PipelineManager(db)
@@ -617,7 +617,7 @@ class TestPipelineManager:
         s2 = await mgr.add_step(pipeline.id, "ALGORITHM", "ALGORITHM", seed_instances["algorithm"].id)
         reordered = await mgr.reorder_steps(pipeline.id, [s2.id, s1.id])
         assert reordered[0].id == s2.id
-        assert reordered[0].step_order == 1
+        assert reordered[0].stage_order == 1
 
     async def test_validate_empty_pipeline(self, db):
         mgr = PipelineManager(db)
@@ -651,14 +651,14 @@ class TestPipelineManager:
         assert status2.status == "PAUSED"
 
 
-# test_work_item_lifecycle.py
+# test_job_lifecycle.py
 
-class TestWorkItemLifecycle:
-    """Tests that WorkItem status transitions follow the state machine:
+class TestJobLifecycle:
+    """Tests that Job status transitions follow the state machine:
     DETECTED -> QUEUED -> PROCESSING -> COMPLETED | FAILED
     """
     async def test_initial_status_is_detected(self, db, seed_activation):
-        item = WorkItem(**make_work_item(
+        item = Job(**make_job(
             pipeline_instance_id=seed_activation.pipeline_instance_id,
             pipeline_activation_id=seed_activation.id,
         ))
@@ -666,7 +666,7 @@ class TestWorkItemLifecycle:
         await db.flush()
         assert item.status == "DETECTED"
 
-    async def test_execution_creates_step_executions(self, db, seed_work_item):
+    async def test_execution_creates_step_executions(self, db, seed_job):
         # Verify step execution records are created per pipeline step
         ...
 
@@ -736,7 +736,7 @@ class TestPluginExecutor:
         assert all(0.0 <= p <= 1.0 for p in progress_values)
 
     async def test_unsupported_runtime_raises(self):
-        from vessel.plugins.registry import PluginManifest
+        from hermes.plugins.registry import PluginManifest
         manifest = PluginManifest(
             name="bad", version="1.0", type=PluginType.ALGORITHM,
             description="", author="", license="", runtime="ruby",
@@ -752,7 +752,7 @@ class TestPluginExecutor:
 # test_plugin_acceptance.py -- Airbyte SAT-inspired
 
 class TestPluginAcceptance:
-    """Generic contract tests that every Vessel plugin must pass.
+    """Generic contract tests that every Hermes plugin must pass.
 
     These tests are parameterized over all discovered plugins.
     Inspired by Airbyte's Standard Acceptance Tests.
@@ -860,7 +860,7 @@ class TestFullPipelineFlow:
     """E2E: Create pipeline via API, activate, inject items, verify completion."""
 
     async def test_item_tracked_through_full_pipeline(self, async_client, seed_definitions):
-        """CRITICAL: Vessel's core differentiator -- every item tracked."""
+        """CRITICAL: Hermes's core differentiator -- every item tracked."""
         # 1. Create instances
         collector = await async_client.post("/api/instances/collector", json={...})
         algorithm = await async_client.post("/api/instances/algorithm", json={...})
@@ -871,11 +871,11 @@ class TestFullPipelineFlow:
             "name": "E2E Test Pipeline",
             "monitoring_type": "API_POLL",
             "steps": [
-                {"step_type": "COLLECT", "ref_type": "COLLECTOR",
+                {"stage_type": "COLLECT", "ref_type": "COLLECTOR",
                  "ref_id": collector.json()["id"]},
-                {"step_type": "ALGORITHM", "ref_type": "ALGORITHM",
+                {"stage_type": "ALGORITHM", "ref_type": "ALGORITHM",
                  "ref_id": algorithm.json()["id"]},
-                {"step_type": "TRANSFER", "ref_type": "TRANSFER",
+                {"stage_type": "TRANSFER", "ref_type": "TRANSFER",
                  "ref_id": transfer.json()["id"]},
             ]
         })
@@ -887,18 +887,18 @@ class TestFullPipelineFlow:
         # 4. Inject/detect a work item
         # (simulate monitoring engine detecting a new item)
 
-        # 5. Verify WorkItem transitions: DETECTED -> PROCESSING -> COMPLETED
+        # 5. Verify Job transitions: DETECTED -> PROCESSING -> COMPLETED
         # 6. Verify step executions created for each step
         # 7. Verify execution snapshot captured
         # 8. Verify event logs recorded
 
     async def test_dedup_prevents_duplicate(self, async_client, seed_active_pipeline):
-        """Same dedup_key should not create a second WorkItem."""
-        item1 = await inject_work_item(seed_active_pipeline, dedup_key="order-123")
-        item2 = await inject_work_item(seed_active_pipeline, dedup_key="order-123")
+        """Same dedup_key should not create a second Job."""
+        item1 = await inject_job(seed_active_pipeline, dedup_key="order-123")
+        item2 = await inject_job(seed_active_pipeline, dedup_key="order-123")
         # item2 should be rejected or merged
         items = await async_client.get(
-            f"/api/pipelines/{seed_active_pipeline.id}/work-items"
+            f"/api/pipelines/{seed_active_pipeline.id}/jobs"
         )
         assert len(items.json()) == 1
 
@@ -909,18 +909,18 @@ class TestReprocessScenario:
     async def test_reprocess_single_item(self, async_client, seed_completed_item):
         """Reprocess a completed item from the beginning."""
         resp = await async_client.post(
-            f"/api/work-items/{seed_completed_item.id}/reprocess",
+            f"/api/jobs/{seed_completed_item.id}/reprocess",
             json={"requested_by": "operator", "reason": "Config changed"}
         )
         assert resp.status_code == 201
         # Verify new execution created
-        item = await async_client.get(f"/api/work-items/{seed_completed_item.id}")
+        item = await async_client.get(f"/api/jobs/{seed_completed_item.id}")
         assert item.json()["execution_count"] == 2
 
     async def test_reprocess_from_specific_step(self, async_client, seed_completed_item):
         """Reprocess starting from step 2 (skip collector)."""
         resp = await async_client.post(
-            f"/api/work-items/{seed_completed_item.id}/reprocess",
+            f"/api/jobs/{seed_completed_item.id}/reprocess",
             json={"requested_by": "operator", "start_from_step": 2}
         )
         assert resp.status_code == 201
@@ -931,7 +931,7 @@ class TestReprocessScenario:
         # Update the recipe
         await update_recipe(seed_completed_item.pipeline_id, {"new_param": "value"})
         resp = await async_client.post(
-            f"/api/work-items/{seed_completed_item.id}/reprocess",
+            f"/api/jobs/{seed_completed_item.id}/reprocess",
             json={"requested_by": "operator", "use_latest_recipe": True}
         )
         # Verify new execution snapshot has the updated recipe
@@ -981,12 +981,12 @@ class TestConcurrentPipelines:
         p1 = await create_and_activate_pipeline(async_client, "Pipeline A")
         p2 = await create_and_activate_pipeline(async_client, "Pipeline B")
 
-        await inject_work_item(p1, source_key="file-a.csv")
-        await inject_work_item(p2, source_key="file-b.csv")
+        await inject_job(p1, source_key="file-a.csv")
+        await inject_job(p2, source_key="file-b.csv")
 
         # Verify each pipeline only sees its own items
-        items_p1 = await get_work_items(async_client, p1.id)
-        items_p2 = await get_work_items(async_client, p2.id)
+        items_p1 = await get_jobs(async_client, p1.id)
+        items_p2 = await get_jobs(async_client, p2.id)
         assert len(items_p1) == 1
         assert len(items_p2) == 1
         assert items_p1[0]["source_key"] == "file-a.csv"
@@ -1040,7 +1040,7 @@ class TestExecutionSnapshot:
 
 ### 5.1 Echo Plugin (fixtures/plugins/echo-plugin/)
 
-**vessel-plugin.json:**
+**hermes-plugin.json:**
 ```json
 {
   "name": "echo",
@@ -1133,7 +1133,7 @@ name: Tests
 on: [push, pull_request]
 
 env:
-  TEST_DATABASE_URL: postgresql+asyncpg://vessel:vessel@localhost:5432/vessel_test
+  TEST_DATABASE_URL: postgresql+asyncpg://hermes:hermes@localhost:5432/hermes_test
 
 jobs:
   unit:
@@ -1153,9 +1153,9 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: vessel
-          POSTGRES_PASSWORD: vessel
-          POSTGRES_DB: vessel_test
+          POSTGRES_USER: hermes
+          POSTGRES_PASSWORD: hermes
+          POSTGRES_DB: hermes_test
         ports: ['5432:5432']
         options: >-
           --health-cmd pg_isready
@@ -1176,9 +1176,9 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: vessel
-          POSTGRES_PASSWORD: vessel
-          POSTGRES_DB: vessel_test
+          POSTGRES_USER: hermes
+          POSTGRES_PASSWORD: hermes
+          POSTGRES_DB: hermes_test
         ports: ['5432:5432']
         options: >-
           --health-cmd pg_isready
@@ -1201,7 +1201,7 @@ jobs:
         with: { python-version: '3.12' }
       - run: cd backend && pip install -e ".[dev]"
       - run: cd backend && ruff check .
-      - run: cd backend && mypy vessel/
+      - run: cd backend && mypy hermes/
 
   coverage:
     name: Coverage Gate
@@ -1211,9 +1211,9 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: vessel
-          POSTGRES_PASSWORD: vessel
-          POSTGRES_DB: vessel_test
+          POSTGRES_USER: hermes
+          POSTGRES_PASSWORD: hermes
+          POSTGRES_DB: hermes_test
         ports: ['5432:5432']
         options: >-
           --health-cmd pg_isready
@@ -1224,7 +1224,7 @@ jobs:
       - run: cd backend && pip install -e ".[dev]" && pip install pytest-cov
       - run: |
           cd backend && pytest tests/unit/ tests/service/ \
-            --cov=vessel --cov-report=xml --cov-fail-under=80
+            --cov=hermes --cov-report=xml --cov-fail-under=80
       - uses: codecov/codecov-action@v4
         with:
           files: backend/coverage.xml
@@ -1236,28 +1236,28 @@ jobs:
 
 | Category | Minimum Coverage | Notes |
 |----------|-----------------|-------|
-| `vessel/plugins/protocol.py` | 95% | Core protocol -- correctness critical |
-| `vessel/plugins/registry.py` | 90% | Plugin discovery/lookup |
-| `vessel/plugins/executor.py` | 85% | Subprocess interaction has inherent edge cases |
-| `vessel/domain/services/recipe_engine.py` | 90% | Versioning/rollback must be reliable |
-| `vessel/domain/services/pipeline_manager.py` | 90% | Lifecycle management |
-| `vessel/domain/models/` | 80% | SQLAlchemy models (constructors, relationships) |
-| `vessel/api/` | 80% | API routes |
+| `hermes/plugins/protocol.py` | 95% | Core protocol -- correctness critical |
+| `hermes/plugins/registry.py` | 90% | Plugin discovery/lookup |
+| `hermes/plugins/executor.py` | 85% | Subprocess interaction has inherent edge cases |
+| `hermes/domain/services/recipe_engine.py` | 90% | Versioning/rollback must be reliable |
+| `hermes/domain/services/pipeline_manager.py` | 90% | Lifecycle management |
+| `hermes/domain/models/` | 80% | SQLAlchemy models (constructors, relationships) |
+| `hermes/api/` | 80% | API routes |
 | **Overall** | **80%** | CI gate blocks merge below this |
 
 ---
 
-## 8. Key Test Scenarios for Vessel's Differentiators
+## 8. Key Test Scenarios for Hermes's Differentiators
 
-### 8.1 WorkItem-Level Tracking
+### 8.1 Job-Level Tracking
 
 | # | Scenario | Assertion |
 |---|----------|-----------|
-| 1 | Item detected by FileWatcher | WorkItem created with status=DETECTED, source_type=FILE |
+| 1 | Item detected by FileWatcher | Job created with status=DETECTED, source_type=FILE |
 | 2 | Item transitions through pipeline | Status: DETECTED -> QUEUED -> PROCESSING -> COMPLETED |
-| 3 | Each step creates StepExecution | WorkItemStepExecution count == pipeline step count |
+| 3 | Each step creates StepExecution | JobStepExecution count == pipeline step count |
 | 4 | Event log records every state change | ExecutionEventLog entries for each transition |
-| 5 | Item query by source_key | GET /work-items?source_key=file.csv returns correct item |
+| 5 | Item query by source_key | GET /jobs?source_key=file.csv returns correct item |
 | 6 | Item detail shows full provenance | Execution history, step results, event timeline |
 
 ### 8.2 Recipe Versioning + Rollback + Diff
@@ -1312,9 +1312,9 @@ jobs:
 
 | # | Scenario | Assertion |
 |---|----------|-----------|
-| 35 | FileWatcher detects new file | Creates WorkItem with correct metadata |
+| 35 | FileWatcher detects new file | Creates Job with correct metadata |
 | 36 | FileWatcher respects patterns | Ignores non-matching files |
-| 37 | APIPoller fetches data | Creates WorkItems from response |
+| 37 | APIPoller fetches data | Creates Jobs from response |
 | 38 | APIPoller handles HTTP error | Records error, does not crash |
 | 39 | APIPoller pagination | Fetches multiple pages |
 
@@ -1340,7 +1340,7 @@ jobs:
 
 | # | Scenario | Assertion |
 |---|----------|-----------|
-| 48 | on_error=STOP halts pipeline | WorkItem status=FAILED, subsequent steps not run |
+| 48 | on_error=STOP halts pipeline | Job status=FAILED, subsequent steps not run |
 | 49 | on_error=SKIP continues | Failed step status=SKIPPED, next step runs |
 | 50 | retry_count=3 retries | Up to 3 retry attempts recorded |
 | 51 | retry_delay_seconds respected | Delay between retries |
@@ -1373,7 +1373,7 @@ cd backend && pytest tests/integration/ -v
 cd backend && pytest tests/e2e/ -v
 
 # All tests with coverage
-cd backend && pytest tests/ --cov=vessel --cov-report=term-missing --cov-fail-under=80
+cd backend && pytest tests/ --cov=hermes --cov-report=term-missing --cov-fail-under=80
 
 # Run only fast tests (< 5s each)
 cd backend && pytest tests/unit/ tests/service/ -v
@@ -1382,7 +1382,7 @@ cd backend && pytest tests/unit/ tests/service/ -v
 cd backend && pytest tests/e2e/test_reprocess_scenario.py::TestReprocessScenario::test_reprocess_single_item -v
 
 # Run with PostgreSQL (CI mode)
-TEST_DATABASE_URL="postgresql+asyncpg://vessel:vessel@localhost:5432/vessel_test" \
+TEST_DATABASE_URL="postgresql+asyncpg://hermes:hermes@localhost:5432/hermes_test" \
   pytest tests/ -v
 ```
 

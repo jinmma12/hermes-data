@@ -8,6 +8,7 @@ import JobDetailPage from './pages/WorkItemDetailPage';
 import DefinitionListPage from './pages/DefinitionListPage';
 import PluginMarketplacePage from './pages/PluginMarketplacePage';
 import SystemLogsPage from './pages/SystemLogsPage';
+import ProvenancePage from './pages/ProvenancePage';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="definitions" element={<DefinitionListPage />} />
         <Route path="plugins" element={<PluginMarketplacePage />} />
         <Route path="logs" element={<SystemLogsPage />} />
+        <Route path="provenance" element={<ProvenancePage />} />
       </Route>
     </Routes>
   );

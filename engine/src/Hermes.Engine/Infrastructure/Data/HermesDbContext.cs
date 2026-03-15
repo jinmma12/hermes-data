@@ -178,6 +178,9 @@ public class HermesDbContext : DbContext, IUnitOfWork
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.HasMany(x => x.WorkItems).WithOne(x => x.PipelineActivation)
                 .HasForeignKey(x => x.PipelineActivationId);
+            e.HasIndex(x => x.PipelineInstanceId);
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => new { x.PipelineInstanceId, x.Status });
         });
 
         // ── Execution ──
@@ -190,6 +193,16 @@ public class HermesDbContext : DbContext, IUnitOfWork
             e.Property(x => x.SourceMetadata).HasColumnType(jsonColumnType);
             e.HasMany(x => x.Executions).WithOne(x => x.WorkItem).HasForeignKey(x => x.WorkItemId);
             e.HasMany(x => x.ReprocessRequests).WithOne(x => x.WorkItem).HasForeignKey(x => x.WorkItemId);
+            // Performance indexes for work item queries
+            e.HasIndex(x => x.PipelineInstanceId);
+            e.HasIndex(x => x.PipelineActivationId);
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.DedupKey);
+            e.HasIndex(x => x.DetectedAt);
+            e.HasIndex(x => x.SourceKey);
+            e.HasIndex(x => new { x.PipelineInstanceId, x.Status }); // Pipeline + status filter
+            e.HasIndex(x => new { x.PipelineInstanceId, x.DedupKey }).IsUnique(false); // Dedup lookup
+            e.HasIndex(x => new { x.PipelineInstanceId, x.DetectedAt }); // Time-range queries
         });
         modelBuilder.Entity<WorkItemExecution>(e =>
         {
@@ -201,6 +214,8 @@ public class HermesDbContext : DbContext, IUnitOfWork
             e.HasOne(x => x.Snapshot).WithOne(x => x.Execution)
                 .HasForeignKey<ExecutionSnapshot>(x => x.ExecutionId);
             e.HasMany(x => x.EventLogs).WithOne(x => x.Execution).HasForeignKey(x => x.ExecutionId);
+            e.HasIndex(x => x.WorkItemId);
+            e.HasIndex(x => x.Status);
         });
         modelBuilder.Entity<WorkItemStepExecution>(e =>
         {
@@ -211,6 +226,8 @@ public class HermesDbContext : DbContext, IUnitOfWork
             e.Property(x => x.InputSummary).HasColumnType(jsonColumnType);
             e.Property(x => x.OutputSummary).HasColumnType(jsonColumnType);
             e.HasMany(x => x.EventLogs).WithOne(x => x.StepExecution).HasForeignKey(x => x.StepExecutionId);
+            e.HasIndex(x => x.ExecutionId);
+            e.HasIndex(x => x.Status);
         });
         modelBuilder.Entity<ExecutionSnapshot>(e =>
         {
@@ -228,6 +245,10 @@ public class HermesDbContext : DbContext, IUnitOfWork
             e.HasKey(x => x.Id);
             e.Property(x => x.EventType).HasConversion<string>().HasMaxLength(10);
             e.Property(x => x.DetailJson).HasColumnType(jsonColumnType);
+            e.HasIndex(x => x.ExecutionId);
+            e.HasIndex(x => x.EventCode);
+            e.HasIndex(x => x.CreatedAt);
+            e.HasIndex(x => new { x.ExecutionId, x.EventCode }); // Checkpoint lookups
         });
         modelBuilder.Entity<ReprocessRequest>(e =>
         {

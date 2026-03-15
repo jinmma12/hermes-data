@@ -14,12 +14,28 @@ public class FileMonitor : BaseMonitor
 {
     private readonly string _watchPath;
     private readonly string _filePattern;
+    private readonly bool _recursive;
+    private readonly System.Text.RegularExpressions.Regex? _pathFilterRegex;
+    private readonly System.Text.RegularExpressions.Regex? _fileFilterRegex;
+    private readonly string _sortBy;
+    private readonly int _maxFiles;
     private readonly HashSet<string> _seenFiles = new();
 
-    public FileMonitor(string watchPath, string filePattern = "*")
+    public FileMonitor(string watchPath, string filePattern = "*", bool recursive = false,
+        string? pathFilterRegex = null, string? fileFilterRegex = null,
+        string sortBy = "modified_desc", int maxFiles = 0)
     {
         _watchPath = watchPath;
         _filePattern = filePattern;
+        _recursive = recursive;
+        _pathFilterRegex = pathFilterRegex != null
+            ? new System.Text.RegularExpressions.Regex(pathFilterRegex, System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+            : null;
+        _fileFilterRegex = fileFilterRegex != null
+            ? new System.Text.RegularExpressions.Regex(fileFilterRegex, System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+            : null;
+        _sortBy = sortBy;
+        _maxFiles = maxFiles;
     }
 
     public override Task<List<MonitorEvent>> PollAsync(CancellationToken ct = default)
@@ -27,18 +43,41 @@ public class FileMonitor : BaseMonitor
         var events = new List<MonitorEvent>();
         if (!Directory.Exists(_watchPath)) return Task.FromResult(events);
 
-        foreach (var file in Directory.EnumerateFiles(_watchPath, _filePattern, SearchOption.TopDirectoryOnly))
-        {
-            if (_seenFiles.Contains(file)) continue;
-            _seenFiles.Add(file);
+        var searchOption = _recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+        var files = Directory.EnumerateFiles(_watchPath, _filePattern, searchOption)
+            .Where(f => !_seenFiles.Contains(f))
+            .Select(f => new FileInfo(f))
+            .AsEnumerable();
 
-            var info = new FileInfo(file);
+        // Apply regex filters
+        if (_pathFilterRegex != null)
+            files = files.Where(f => _pathFilterRegex.IsMatch(f.FullName));
+        if (_fileFilterRegex != null)
+            files = files.Where(f => _fileFilterRegex.IsMatch(f.Name));
+
+        // Sort
+        files = _sortBy switch
+        {
+            "modified_asc" => files.OrderBy(f => f.LastWriteTimeUtc),
+            "name_asc" => files.OrderBy(f => f.Name),
+            "name_desc" => files.OrderByDescending(f => f.Name),
+            "size_desc" => files.OrderByDescending(f => f.Length),
+            _ => files.OrderByDescending(f => f.LastWriteTimeUtc), // modified_desc (default)
+        };
+
+        // Limit
+        if (_maxFiles > 0)
+            files = files.Take(_maxFiles);
+
+        foreach (var info in files)
+        {
+            _seenFiles.Add(info.FullName);
             events.Add(new MonitorEvent(
                 EventType: "FILE",
-                Key: file,
+                Key: info.FullName,
                 Metadata: new Dictionary<string, object>
                 {
-                    ["path"] = file,
+                    ["path"] = info.FullName,
                     ["filename"] = info.Name,
                     ["size"] = info.Length,
                     ["last_modified"] = info.LastWriteTimeUtc.ToString("O")

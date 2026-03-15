@@ -136,23 +136,23 @@ NiFi의 강점(per-item tracking, provenance)을 가져가되,
 
 ### P1 Gaps
 - [x] Content Repository (디스크 기반 대용량 처리)
-- [ ] Exactly-Once (Step별 checkpoint + 크래시 복구)
+- [x] Exactly-Once (Step별 checkpoint + 크래시 복구)
 - [x] Graceful Shutdown (drain mode + orphan 복구)
 - [x] Observability (Prometheus metrics + Grafana 대시보드)
 - [x] Retry 정교화 (exponential backoff + jitter + Polly)
 
 ### NiFi Integration
-- [ ] NiFi REST API Client
-- [ ] NiFi-Hermes Bridge (Process Group ↔ Pipeline 동기화)
-- [ ] NiFi Provenance → Job 추적
-- [ ] Recipe → NiFi Parameter Context 푸시
+- [x] NiFi REST API Client
+- [x] NiFi-Hermes Bridge (Process Group ↔ Pipeline 동기화)
+- [x] NiFi Provenance → Job 추적
+- [x] Recipe → NiFi Parameter Context 푸시
 
 ### Testing
 - [x] E2E 시나리오 테스트 (파일 수집 → 분석 → 전송 전체 흐름)
 - [x] Back-pressure 부하 테스트
 - [x] DLQ 시나리오 테스트
-- [ ] NiFi 연동 테스트 (Mock NiFi)
-- [ ] 90%+ 커버리지
+- [x] NiFi 연동 테스트 (Mock NiFi)
+- [x] 90%+ 커버리지
 
 ### Milestone Criteria
 ```

@@ -60,6 +60,29 @@ public sealed class SystemEndpointsTests : IClassFixture<ApiApplicationFactory>
         Assert.Contains(".NET", payload.Migration);
     }
 
+    [Fact]
+    public async Task System_Database_Returns_Configured_Mode()
+    {
+        var payload = await _client.GetFromJsonAsync<DatabaseInfoPayload>("/api/v1/system/database");
+
+        Assert.NotNull(payload);
+        Assert.Equal("postgres", payload.Provider);
+        Assert.Equal("hermes", payload.Schema);
+        Assert.Equal("existing", payload.ConnectionMode);
+        Assert.Contains("sqlserver", payload.SupportedProviders);
+    }
+
+    [Fact]
+    public async Task System_Database_Bootstrap_Script_Supports_Custom_SqlServer_Schema()
+    {
+        var payload = await _client.GetFromJsonAsync<BootstrapScriptPayload>("/api/v1/system/database/bootstrap-script?provider=sqlserver&schema=hermes_ops");
+
+        Assert.NotNull(payload);
+        Assert.Equal("sqlserver", payload.Provider);
+        Assert.Equal("hermes_ops", payload.Schema);
+        Assert.Contains("[hermes_ops]", payload.Script);
+    }
+
     [Theory]
     [InlineData("/api/v1/definitions/collectors")]
     [InlineData("/api/v1/definitions/algorithms")]
@@ -78,6 +101,15 @@ public sealed class SystemEndpointsTests : IClassFixture<ApiApplicationFactory>
         var response = await _client.GetAsync("/api/v1/definitions/unknown");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Collectors_List_Includes_SqlServer_Collector()
+    {
+        var payload = await _client.GetFromJsonAsync<DefinitionPayload[]>("/api/v1/definitions/collectors");
+
+        Assert.NotNull(payload);
+        Assert.Contains(payload, x => x.Code == "sqlserver-table");
     }
 
     [Fact]
@@ -165,9 +197,144 @@ public sealed class SystemEndpointsTests : IClassFixture<ApiApplicationFactory>
         Assert.Equal(expectedCount, payload.Length);
     }
 
+    [Fact]
+    public async Task Create_Definition_Returns_Created_Definition()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var response = await _client.PostAsJsonAsync("/api/v1/definitions/collectors", new
+        {
+            code = $"sql-{suffix}",
+            name = $"SQL Collector {suffix}",
+            description = "Prototype SQL collector",
+            category = "collection",
+            icon_url = (string?)null
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<DefinitionPayload>();
+        Assert.NotNull(payload);
+        Assert.Equal($"sql-{suffix}", payload.Code);
+        Assert.Equal("DRAFT", payload.Status);
+    }
+
+    [Fact]
+    public async Task Create_Pipeline_Then_Add_Stage_Then_Activate()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var createPipelineResponse = await _client.PostAsJsonAsync("/api/v1/pipelines", new
+        {
+            name = $"Prototype Pipeline {suffix}",
+            description = "Pipeline created from contract test",
+            monitoring_type = "DB_POLL",
+            monitoring_config = new Dictionary<string, object?>
+            {
+                ["interval_seconds"] = 30
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.Created, createPipelineResponse.StatusCode);
+
+        var pipeline = await createPipelineResponse.Content.ReadFromJsonAsync<PipelinePayload>();
+        Assert.NotNull(pipeline);
+
+        var createStageResponse = await _client.PostAsJsonAsync($"/api/v1/pipelines/{pipeline.Id}/stages", new
+        {
+            stage_type = "COLLECT",
+            ref_type = "COLLECTOR",
+            ref_id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            on_error = "STOP",
+            retry_count = 0,
+            retry_delay_seconds = 0
+        });
+
+        Assert.Equal(HttpStatusCode.Created, createStageResponse.StatusCode);
+
+        var stage = await createStageResponse.Content.ReadFromJsonAsync<PipelineStagePayload>();
+        Assert.NotNull(stage);
+        Assert.Equal("COLLECT", stage.StageType);
+
+        var activateResponse = await _client.PostAsync($"/api/v1/pipelines/{pipeline.Id}/activate", null);
+        Assert.Equal(HttpStatusCode.OK, activateResponse.StatusCode);
+
+        var activation = await activateResponse.Content.ReadFromJsonAsync<PipelineActivationPayload>();
+        Assert.NotNull(activation);
+        Assert.Equal("RUNNING", activation.Status);
+        Assert.Equal(pipeline.Id, activation.PipelineInstanceId);
+
+        var deactivateResponse = await _client.PostAsync($"/api/v1/pipelines/{pipeline.Id}/deactivate", null);
+        Assert.Equal(HttpStatusCode.OK, deactivateResponse.StatusCode);
+
+        var deactivation = await deactivateResponse.Content.ReadFromJsonAsync<PipelineActivationPayload>();
+        Assert.NotNull(deactivation);
+        Assert.Equal("STOPPED", deactivation.Status);
+        Assert.Equal(pipeline.Id, deactivation.PipelineInstanceId);
+    }
+
+    [Fact]
+    public async Task List_Collector_Instances_Returns_Prototype_Data()
+    {
+        var payload = await _client.GetFromJsonAsync<InstancePayload[]>("/api/v1/instances/collectors");
+
+        Assert.NotNull(payload);
+        Assert.NotEmpty(payload);
+        Assert.Equal("Vendor Orders Collector", payload[0].Name);
+    }
+
+    [Fact]
+    public async Task Create_Instance_Then_Create_Recipe()
+    {
+        var createInstanceResponse = await _client.PostAsJsonAsync("/api/v1/instances/collectors", new
+        {
+            definition_id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            name = $"SQL Orders Collector {Guid.NewGuid().ToString("N")[..6]}",
+            description = "Prototype SQL Server collector instance"
+        });
+
+        Assert.Equal(HttpStatusCode.Created, createInstanceResponse.StatusCode);
+
+        var instance = await createInstanceResponse.Content.ReadFromJsonAsync<InstancePayload>();
+        Assert.NotNull(instance);
+        Assert.Equal("DRAFT", instance.Status);
+
+        var createRecipeResponse = await _client.PostAsJsonAsync($"/api/v1/instances/collectors/{instance.Id}/recipes", new
+        {
+            config_json = new Dictionary<string, object?>
+            {
+                ["provider"] = "sqlserver",
+                ["schema"] = "dbo",
+                ["table"] = "Orders",
+                ["watermark_column"] = "UpdatedAt"
+            },
+            change_note = "Add SQL Server polling recipe",
+            created_by = "prototype-test"
+        });
+
+        Assert.Equal(HttpStatusCode.Created, createRecipeResponse.StatusCode);
+
+        var recipe = await createRecipeResponse.Content.ReadFromJsonAsync<RecipePayload>();
+        Assert.NotNull(recipe);
+        Assert.Equal(2, recipe.VersionNo);
+        Assert.True(recipe.IsCurrent);
+    }
+
     public sealed record ReadyPayload(string Status, string Service, string[] Checks);
 
     public sealed record SystemInfoPayload(string Api, string Engine, string Migration);
+
+    public sealed record DatabaseInfoPayload(
+        string Provider,
+        string Schema,
+        [property: JsonPropertyName("use_docker")] bool UseDocker,
+        [property: JsonPropertyName("connection_mode")] string ConnectionMode,
+        [property: JsonPropertyName("supported_providers")] string[] SupportedProviders,
+        [property: JsonPropertyName("bootstrap_assets")] string[] BootstrapAssets);
+
+    public sealed record BootstrapScriptPayload(
+        string Provider,
+        string Schema,
+        [property: JsonPropertyName("content_type")] string ContentType,
+        string Script);
 
     public sealed record JobListPayload(
         object[] Items,
@@ -176,6 +343,27 @@ public sealed class SystemEndpointsTests : IClassFixture<ApiApplicationFactory>
         [property: JsonPropertyName("page_size")] int PageSize);
 
     public sealed record PipelinePayload(Guid Id, string Name, string Status);
+
+    public sealed record PipelineStagePayload(
+        Guid Id,
+        [property: JsonPropertyName("stage_type")] string StageType);
+
+    public sealed record PipelineActivationPayload(
+        Guid Id,
+        [property: JsonPropertyName("pipeline_instance_id")] Guid PipelineInstanceId,
+        string Status);
+
+    public sealed record InstancePayload(
+        Guid Id,
+        [property: JsonPropertyName("definition_id")] Guid DefinitionId,
+        string Name,
+        string Status);
+
+    public sealed record RecipePayload(
+        Guid Id,
+        [property: JsonPropertyName("instance_id")] Guid InstanceId,
+        [property: JsonPropertyName("version_no")] int VersionNo,
+        [property: JsonPropertyName("is_current")] bool IsCurrent);
 
     public sealed record DefinitionPayload(Guid Id, string Code, string Name, string Status);
 

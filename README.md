@@ -115,6 +115,7 @@ open http://localhost:8000/docs
 - `ASP.NET Core` is the target public API for V2
 - `.NET` remains the target engine and worker runtime
 - Python remains the migration reference layer and plugin/runtime language
+- The current `.NET` prototype already exposes definition, instance, pipeline, activation, and bootstrap endpoints
 
 ## Database
 
@@ -136,6 +137,14 @@ Bootstrap assets:
 
 - `database/postgresql/init_query.sql`
 - `database/sqlserver/init_query.sql`
+
+Prototype operator flow for existing SQL Server installs:
+
+1. Set `Database__Provider=sqlserver`
+2. Set `Database__Schema=hermes` or your preferred schema name
+3. Set `Database__ConnectionStrings__SqlServer` to the existing database
+4. Fetch bootstrap SQL from `GET /api/v1/system/database/bootstrap-script?provider=sqlserver&schema=<schema>`
+5. Apply the script before Hermes-owned tables and runtime state are enabled
 
 ---
 

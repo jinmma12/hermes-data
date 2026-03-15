@@ -330,6 +330,7 @@ Hermes V2 should support both PostgreSQL and SQL Server.
 - Docker DB is optional
 - users with existing DB infrastructure should be able to connect directly
 - provider-specific bootstrap scripts must be kept in sync with application models
+- the `.NET` prototype exposes `/api/v1/system/database` and `/api/v1/system/database/bootstrap-script` for install-time configuration and schema bootstrap retrieval
 
 Bootstrap assets:
 

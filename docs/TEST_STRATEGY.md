@@ -1472,3 +1472,4 @@ Provider-aware tests should cover:
 - migrations
 - index/constraint compatibility
 - configurable schema namespace (default `hermes`)
+- system contract endpoints for provider selection and bootstrap script retrieval

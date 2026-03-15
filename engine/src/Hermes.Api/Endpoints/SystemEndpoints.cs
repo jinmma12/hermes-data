@@ -1,3 +1,7 @@
+using Hermes.Api.Options;
+using Hermes.Api.Services;
+using Microsoft.Extensions.Options;
+
 namespace Hermes.Api.Endpoints;
 
 public static class SystemEndpoints
@@ -37,6 +41,33 @@ public static class SystemEndpoints
             engine = "Hermes.Engine",
             migration = "Python FastAPI to ASP.NET Core in progress"
         }));
+
+        api.MapGet("/system/database", (IDatabaseBootstrapScriptService scripts) =>
+            Results.Ok(scripts.GetDatabaseInfo()));
+
+        api.MapGet("/system/database/bootstrap-script", (
+            string? provider,
+            string? schema,
+            IDatabaseBootstrapScriptService scripts,
+            IOptions<DatabaseOptions> options) =>
+        {
+            try
+            {
+                var bootstrap = scripts.GetBootstrapScript(
+                    provider ?? options.Value.Provider,
+                    schema ?? options.Value.Schema);
+
+                return Results.Ok(bootstrap);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { detail = ex.Message });
+            }
+            catch (FileNotFoundException ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        });
 
         return app;
     }

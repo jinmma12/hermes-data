@@ -1258,6 +1258,7 @@ The intended V2 direction is:
 - ASP.NET Core becomes the public API
 - `.NET` workers and engine own runtime behavior
 - Python remains for reference behavior, plugin support, and migration comparison
+- The current `.NET` prototype surface already includes definition, instance, pipeline, activation/deactivation, and database bootstrap endpoints
 
 ## 17. Database Strategy
 
@@ -1274,3 +1275,9 @@ Bootstrap assets:
 
 - `database/postgresql/init_query.sql`
 - `database/sqlserver/init_query.sql`
+
+Current prototype support for operator installs:
+
+- `GET /api/v1/system/database` exposes provider, schema, and connection mode
+- `GET /api/v1/system/database/bootstrap-script` returns provider-aware bootstrap SQL
+- SQL Server installs should keep Hermes-owned tables under a dedicated schema such as `hermes`

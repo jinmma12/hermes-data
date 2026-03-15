@@ -4,8 +4,11 @@ namespace Hermes.Api.Services;
 
 public sealed class InMemoryHermesReadStore : IHermesReadStore
 {
+    private readonly object _lock = new();
     private readonly Dictionary<string, List<DefinitionSummaryDto>> _definitions;
     private readonly Dictionary<string, List<DefinitionVersionDto>> _definitionVersions;
+    private readonly Dictionary<string, List<InstanceSummaryDto>> _instances;
+    private readonly Dictionary<string, List<RecipeVersionDto>> _recipes;
     private readonly List<PipelineSummaryDto> _pipelines;
     private readonly Dictionary<Guid, List<PipelineStageDto>> _pipelineStages;
     private readonly List<PipelineActivationDto> _activations;
@@ -16,6 +19,7 @@ public sealed class InMemoryHermesReadStore : IHermesReadStore
         var now = "2026-03-15T00:00:00Z";
 
         var collectorId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var sqlServerCollectorId = Guid.Parse("11111111-2222-2222-2222-222222222222");
         var algorithmId = Guid.Parse("22222222-2222-2222-2222-222222222222");
         var transferId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
@@ -23,7 +27,8 @@ public sealed class InMemoryHermesReadStore : IHermesReadStore
         {
             ["collectors"] =
             [
-                new(collectorId, "rest-api", "REST API Collector", "Collect from REST endpoints", "collection", null, "ACTIVE", now)
+                new(collectorId, "rest-api", "REST API Collector", "Collect from REST endpoints", "collection", null, "ACTIVE", now),
+                new(sqlServerCollectorId, "sqlserver-table", "SQL Server Table Collector", "Poll rows from an existing SQL Server table using a watermark column", "collection", null, "ACTIVE", now)
             ],
             ["algorithms"] =
             [
@@ -49,6 +54,39 @@ public sealed class InMemoryHermesReadStore : IHermesReadStore
                     new() { ["method"] = "GET" },
                     "PLUGIN",
                     "builtin.collectors.rest-api",
+                    true,
+                    now),
+                new(
+                    Guid.Parse("aaaaaaaa-2222-2222-2222-222222222222"),
+                    sqlServerCollectorId,
+                    1,
+                    new()
+                    {
+                        ["connection_string"] = "string",
+                        ["schema"] = "string",
+                        ["table"] = "string",
+                        ["watermark_column"] = "string",
+                        ["poll_interval_seconds"] = "number"
+                    },
+                    new()
+                    {
+                        ["connection_string"] = "password",
+                        ["schema"] = "text",
+                        ["table"] = "text",
+                        ["watermark_column"] = "text",
+                        ["poll_interval_seconds"] = "number"
+                    },
+                    new()
+                    {
+                        ["rows"] = "array"
+                    },
+                    new()
+                    {
+                        ["schema"] = "dbo",
+                        ["poll_interval_seconds"] = 30
+                    },
+                    "PLUGIN",
+                    "builtin.collectors.sqlserver-table",
                     true,
                     now)
             ],
@@ -80,6 +118,100 @@ public sealed class InMemoryHermesReadStore : IHermesReadStore
                     "PLUGIN",
                     "builtin.transfers.file-output",
                     true,
+                    now)
+            ]
+        };
+
+        _instances = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["collectors"] =
+            [
+                new(
+                    Guid.Parse("99999999-1111-1111-1111-111111111111"),
+                    collectorId,
+                    "Vendor Orders Collector",
+                    "Prototype collector instance for vendor orders",
+                    "ACTIVE",
+                    now)
+            ],
+            ["algorithms"] =
+            [
+                new(
+                    Guid.Parse("99999999-2222-2222-2222-222222222222"),
+                    algorithmId,
+                    "Vendor Orders Transform",
+                    "Prototype algorithm instance",
+                    "ACTIVE",
+                    now)
+            ],
+            ["transfers"] =
+            [
+                new(
+                    Guid.Parse("99999999-3333-3333-3333-333333333333"),
+                    transferId,
+                    "Vendor Orders File Output",
+                    "Prototype transfer instance",
+                    "ACTIVE",
+                    now)
+            ]
+        };
+
+        _recipes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["collectors"] =
+            [
+                new(
+                    Guid.Parse("12121212-1111-1111-1111-111111111111"),
+                    Guid.Parse("99999999-1111-1111-1111-111111111111"),
+                    Guid.Parse("aaaaaaaa-1111-1111-1111-111111111111"),
+                    1,
+                    new()
+                    {
+                        ["provider"] = "sqlserver",
+                        ["connection_string"] = "Server=sql01;Database=legacy_ops;Integrated Security=True;TrustServerCertificate=True",
+                        ["schema"] = "dbo",
+                        ["table"] = "Orders",
+                        ["watermark_column"] = "UpdatedAt",
+                        ["poll_interval_seconds"] = 30
+                    },
+                    new(),
+                    true,
+                    "system",
+                    "Initial SQL Server collector recipe",
+                    now)
+            ],
+            ["algorithms"] =
+            [
+                new(
+                    Guid.Parse("12121212-2222-2222-2222-222222222222"),
+                    Guid.Parse("99999999-2222-2222-2222-222222222222"),
+                    Guid.Parse("bbbbbbbb-2222-2222-2222-222222222222"),
+                    1,
+                    new()
+                    {
+                        ["expression"] = "{ data }"
+                    },
+                    new(),
+                    true,
+                    "system",
+                    "Initial transform recipe",
+                    now)
+            ],
+            ["transfers"] =
+            [
+                new(
+                    Guid.Parse("12121212-3333-3333-3333-333333333333"),
+                    Guid.Parse("99999999-3333-3333-3333-333333333333"),
+                    Guid.Parse("cccccccc-3333-3333-3333-333333333333"),
+                    1,
+                    new()
+                    {
+                        ["path"] = "C:\\\\Hermes\\\\output"
+                    },
+                    new(),
+                    true,
+                    "system",
+                    "Initial file output recipe",
                     now)
             ]
         };
@@ -172,13 +304,274 @@ public sealed class InMemoryHermesReadStore : IHermesReadStore
             ? versions.Where(x => x.DefinitionId == definitionId).OrderByDescending(x => x.VersionNo).ToArray()
             : [];
 
+    public DefinitionSummaryDto CreateDefinition(string kind, DefinitionCreateRequest request)
+    {
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        var definition = new DefinitionSummaryDto(
+            Guid.NewGuid(),
+            request.Code,
+            request.Name,
+            request.Description,
+            request.Category,
+            request.IconUrl,
+            "DRAFT",
+            now);
+
+        lock (_lock)
+        {
+            if (!_definitions.TryGetValue(kind, out var definitions))
+            {
+                throw new InvalidOperationException($"Unknown definition type: {kind}");
+            }
+
+            if (definitions.Any(x => x.Code.Equals(request.Code, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException($"Definition code already exists: {request.Code}");
+            }
+
+            definitions.Add(definition);
+
+            if (_definitionVersions.TryGetValue(kind, out var versions))
+            {
+                versions.Add(new DefinitionVersionDto(
+                    Guid.NewGuid(),
+                    definition.Id,
+                    1,
+                    [],
+                    [],
+                    [],
+                    [],
+                    "PLUGIN",
+                    null,
+                    false,
+                    now));
+            }
+        }
+
+        return definition;
+    }
+
+    public IReadOnlyList<InstanceSummaryDto> ListInstances(string kind) =>
+        _instances.TryGetValue(kind, out var instances) ? instances : [];
+
+    public InstanceSummaryDto? GetInstance(string kind, Guid instanceId) =>
+        ListInstances(kind).FirstOrDefault(x => x.Id == instanceId);
+
+    public InstanceSummaryDto CreateInstance(string kind, InstanceCreateRequest request)
+    {
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        var instance = new InstanceSummaryDto(
+            Guid.NewGuid(),
+            request.DefinitionId,
+            request.Name,
+            request.Description,
+            "DRAFT",
+            now);
+
+        lock (_lock)
+        {
+            if (!_instances.TryGetValue(kind, out var instances))
+            {
+                throw new InvalidOperationException($"Unknown instance type: {kind}");
+            }
+
+            instances.Add(instance);
+            if (_recipes.TryGetValue(kind, out var recipes))
+            {
+                recipes.Add(new RecipeVersionDto(
+                    Guid.NewGuid(),
+                    instance.Id,
+                    Guid.Empty,
+                    1,
+                    new(),
+                    new(),
+                    true,
+                    "system",
+                    "Initial empty recipe",
+                    now));
+            }
+        }
+
+        return instance;
+    }
+
+    public IReadOnlyList<RecipeVersionDto> ListRecipes(string kind, Guid instanceId) =>
+        _recipes.TryGetValue(kind, out var recipes)
+            ? recipes.Where(x => x.InstanceId == instanceId).OrderByDescending(x => x.VersionNo).ToArray()
+            : [];
+
+    public RecipeVersionDto CreateRecipe(string kind, Guid instanceId, RecipeCreateRequest request)
+    {
+        lock (_lock)
+        {
+            if (!_recipes.TryGetValue(kind, out var recipes))
+            {
+                throw new InvalidOperationException($"Unknown instance type: {kind}");
+            }
+
+            var currentVersions = recipes.Where(x => x.InstanceId == instanceId).ToArray();
+            if (currentVersions.Length == 0)
+            {
+                throw new KeyNotFoundException("Instance not found");
+            }
+
+            var nextVersion = currentVersions.Max(x => x.VersionNo) + 1;
+            for (var i = 0; i < recipes.Count; i++)
+            {
+                if (recipes[i].InstanceId == instanceId && recipes[i].IsCurrent)
+                {
+                    recipes[i] = recipes[i] with { IsCurrent = false };
+                }
+            }
+
+            var recipe = new RecipeVersionDto(
+                Guid.NewGuid(),
+                instanceId,
+                currentVersions[0].DefVersionId,
+                nextVersion,
+                request.ConfigJson,
+                new(),
+                true,
+                request.CreatedBy,
+                request.ChangeNote,
+                DateTimeOffset.UtcNow.ToString("O"));
+
+            recipes.Add(recipe);
+            return recipe;
+        }
+    }
+
     public IReadOnlyList<PipelineSummaryDto> ListPipelines() => _pipelines;
 
     public PipelineSummaryDto? GetPipeline(Guid pipelineId) =>
         _pipelines.FirstOrDefault(x => x.Id == pipelineId);
 
+    public PipelineSummaryDto CreatePipeline(PipelineCreateRequest request)
+    {
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        var pipeline = new PipelineSummaryDto(
+            Guid.NewGuid(),
+            request.Name,
+            request.Description,
+            request.MonitoringType,
+            request.MonitoringConfig,
+            "DRAFT",
+            now,
+            now);
+
+        lock (_lock)
+        {
+            _pipelines.Add(pipeline);
+            _pipelineStages[pipeline.Id] = [];
+        }
+
+        return pipeline;
+    }
+
     public IReadOnlyList<PipelineStageDto> ListPipelineStages(Guid pipelineId) =>
         _pipelineStages.TryGetValue(pipelineId, out var stages) ? stages : [];
+
+    public PipelineStageDto CreatePipelineStage(Guid pipelineId, PipelineStageCreateRequest request)
+    {
+        lock (_lock)
+        {
+            if (!_pipelineStages.TryGetValue(pipelineId, out var stages))
+            {
+                throw new KeyNotFoundException("Pipeline not found");
+            }
+
+            var nextOrder = request.StageOrder ?? (stages.Count == 0 ? 1 : stages.Max(x => x.StageOrder) + 1);
+            var stage = new PipelineStageDto(
+                Guid.NewGuid(),
+                pipelineId,
+                nextOrder,
+                request.StageType,
+                request.RefType,
+                request.RefId,
+                null,
+                true,
+                request.OnError,
+                request.RetryCount,
+                request.RetryDelaySeconds);
+
+            stages.Add(stage);
+            return stage;
+        }
+    }
+
+    public PipelineActivationDto ActivatePipeline(Guid pipelineId)
+    {
+        lock (_lock)
+        {
+            var pipelineIndex = _pipelines.FindIndex(x => x.Id == pipelineId);
+            if (pipelineIndex < 0)
+            {
+                throw new KeyNotFoundException("Pipeline not found");
+            }
+
+            var pipeline = _pipelines[pipelineIndex] with
+            {
+                Status = "ACTIVE",
+                UpdatedAt = DateTimeOffset.UtcNow.ToString("O")
+            };
+            _pipelines[pipelineIndex] = pipeline;
+
+            var activation = new PipelineActivationDto(
+                Guid.NewGuid(),
+                pipelineId,
+                pipeline,
+                "RUNNING",
+                DateTimeOffset.UtcNow.ToString("O"),
+                null,
+                DateTimeOffset.UtcNow.ToString("O"),
+                null,
+                null,
+                "worker-1",
+                0);
+
+            _activations.Add(activation);
+            return activation;
+        }
+    }
+
+    public PipelineActivationDto DeactivatePipeline(Guid pipelineId)
+    {
+        lock (_lock)
+        {
+            var pipelineIndex = _pipelines.FindIndex(x => x.Id == pipelineId);
+            if (pipelineIndex < 0)
+            {
+                throw new KeyNotFoundException("Pipeline not found");
+            }
+
+            var pipeline = _pipelines[pipelineIndex] with
+            {
+                Status = "PAUSED",
+                UpdatedAt = DateTimeOffset.UtcNow.ToString("O")
+            };
+            _pipelines[pipelineIndex] = pipeline;
+
+            var activationIndex = _activations.FindLastIndex(x =>
+                x.PipelineInstanceId == pipelineId &&
+                x.Status == "RUNNING");
+
+            if (activationIndex < 0)
+            {
+                throw new InvalidOperationException("Pipeline is not running");
+            }
+
+            var stoppedAt = DateTimeOffset.UtcNow.ToString("O");
+            var stoppedActivation = _activations[activationIndex] with
+            {
+                Status = "STOPPED",
+                StoppedAt = stoppedAt,
+                LastHeartbeatAt = stoppedAt
+            };
+
+            _activations[activationIndex] = stoppedActivation;
+            return stoppedActivation;
+        }
+    }
 
     public PaginatedResponseDto<JobSummaryDto> ListJobs(int page, int pageSize)
     {

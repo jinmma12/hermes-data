@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Hermes.Engine.Domain;
 using Hermes.Engine.Domain.Entities;
 using Hermes.Engine.Infrastructure.Data;
+using Hermes.Engine.Services;
 
 namespace Hermes.Engine.Services.Monitors;
 
@@ -13,6 +14,7 @@ public class MonitoringEngine : IMonitoringEngine
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConditionEvaluator _conditionEvaluator;
+    private readonly IBackPressureManager _backPressureManager;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<MonitoringEngine> _logger;
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _monitors = new();
@@ -20,11 +22,13 @@ public class MonitoringEngine : IMonitoringEngine
     public MonitoringEngine(
         IServiceScopeFactory scopeFactory,
         IConditionEvaluator conditionEvaluator,
+        IBackPressureManager backPressureManager,
         IHttpClientFactory httpClientFactory,
         ILogger<MonitoringEngine> logger)
     {
         _scopeFactory = scopeFactory;
         _conditionEvaluator = conditionEvaluator;
+        _backPressureManager = backPressureManager;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
@@ -70,6 +74,15 @@ public class MonitoringEngine : IMonitoringEngine
         {
             try
             {
+                // Back-pressure check
+                var bpState = await _backPressureManager.GetStateAsync(pipelineId, ct);
+                if (bpState.Level == BackPressureLevel.Paused)
+                {
+                    _logger.LogWarning("Back-pressure PAUSED for pipeline {Id}, queue={Queued}", pipelineId, bpState.QueuedCount);
+                    await Task.Delay(10000, ct); // Wait 10s before re-checking
+                    continue;
+                }
+
                 var events = await monitor.PollAsync(ct);
                 if (events.Count > 0)
                 {
@@ -115,7 +128,8 @@ public class MonitoringEngine : IMonitoringEngine
                     await db.SaveChangesAsync(ct);
                 }
 
-                await Task.Delay(intervalMs, ct);
+                var effectiveInterval = _backPressureManager.GetThrottledIntervalMs(intervalMs, bpState);
+                await Task.Delay(effectiveInterval, ct);
             }
             catch (OperationCanceledException) { break; }
             catch (Exception ex)

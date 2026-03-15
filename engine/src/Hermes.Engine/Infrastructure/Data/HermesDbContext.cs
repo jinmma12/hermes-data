@@ -38,6 +38,7 @@ public class HermesDbContext : DbContext, IUnitOfWork
     public DbSet<ExecutionSnapshot> ExecutionSnapshots => Set<ExecutionSnapshot>();
     public DbSet<ExecutionEventLog> ExecutionEventLogs => Set<ExecutionEventLog>();
     public DbSet<ReprocessRequest> ReprocessRequests => Set<ReprocessRequest>();
+    public DbSet<DeadLetterEntry> DeadLetterEntries => Set<DeadLetterEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -233,6 +234,14 @@ public class HermesDbContext : DbContext, IUnitOfWork
             e.ToTable("reprocess_requests");
             e.HasKey(x => x.Id);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        });
+        modelBuilder.Entity<DeadLetterEntry>(e =>
+        {
+            e.ToTable("dead_letter_entries");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.InputDataJson).HasColumnType(jsonColumnType);
+            e.HasOne(x => x.WorkItem).WithMany().HasForeignKey(x => x.WorkItemId);
         });
     }
 

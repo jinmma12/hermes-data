@@ -19,3 +19,4 @@ public enum EventLevel { Debug, Info, Warn, Error }
 public enum PluginStatus { Installed, Active, Disabled, Uninstalled }
 public enum MessageType { Configure, Execute, Log, Output, Error, Status, Done }
 public enum PluginType { Collector, Algorithm, Transfer }
+public enum DeadLetterStatus { Quarantined, Retrying, Resolved, Discarded }

@@ -61,6 +61,10 @@ try
 
     // Domain services
     builder.Services.AddSingleton<IConditionEvaluator, ConditionEvaluator>();
+    builder.Services.AddSingleton<IBackPressureManager, BackPressureManager>();
+    builder.Services.AddSingleton<IDeadLetterQueue, DeadLetterQueue>();
+    builder.Services.AddSingleton<ICircuitBreakerManager, CircuitBreakerManager>();
+    builder.Services.AddHostedService<GracefulShutdownHandler>();
     builder.Services.AddScoped<ISnapshotResolver, SnapshotResolver>();
     builder.Services.AddScoped<IProcessingOrchestrator, ProcessingOrchestrator>();
 

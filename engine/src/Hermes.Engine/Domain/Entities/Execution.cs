@@ -96,3 +96,24 @@ public class ReprocessRequest : AuditableEntity
     public Guid? ExecutionId { get; set; }
     public WorkItem WorkItem { get; set; } = null!;
 }
+
+public class DeadLetterEntry : BaseEntity
+{
+    public Guid WorkItemId { get; set; }
+    public Guid? ExecutionId { get; set; }
+    public Guid PipelineInstanceId { get; set; }
+    public string ErrorCode { get; set; } = string.Empty;
+    public string ErrorMessage { get; set; } = string.Empty;
+    public string? StackTrace { get; set; }
+    public int FailureCount { get; set; }
+    public string? LastStepType { get; set; }
+    public int? LastStepOrder { get; set; }
+    public string OriginalSourceKey { get; set; } = string.Empty;
+    public string? InputDataJson { get; set; }
+    public DeadLetterStatus Status { get; set; } = DeadLetterStatus.Quarantined;
+    public string? ResolvedBy { get; set; }
+    public DateTimeOffset? ResolvedAt { get; set; }
+    public string? ResolutionNote { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public WorkItem WorkItem { get; set; } = null!;
+}

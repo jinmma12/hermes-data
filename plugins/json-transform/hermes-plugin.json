@@ -1,0 +1,19 @@
+{
+  "name": "json-transform",
+  "version": "1.0.0",
+  "type": "algorithm",
+  "description": "Transform JSON data using JMESPath expressions or field mapping rules. Inspired by NiFi JoltTransformJSON.",
+  "author": "hermes-core",
+  "license": "Apache-2.0",
+  "runtime": "python",
+  "entrypoint": "main.py",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "operation": { "type": "string", "enum": ["select", "rename", "add", "remove", "jmespath"], "default": "select", "title": "Operation" },
+      "fields": { "type": "object", "title": "Field Mapping", "description": "For select: fields to keep. For rename: {old: new}. For add: {name: value}." },
+      "expression": { "type": "string", "title": "JMESPath Expression", "description": "For jmespath operation" },
+      "remove_fields": { "type": "array", "items": { "type": "string" }, "title": "Fields to Remove" }
+    }
+  }
+}

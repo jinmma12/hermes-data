@@ -1,0 +1,18 @@
+{
+  "name": "csv-json-converter",
+  "version": "1.0.0",
+  "type": "algorithm",
+  "description": "Convert between CSV and JSON formats. Inspired by NiFi ConvertRecord processor.",
+  "author": "hermes-core",
+  "license": "Apache-2.0",
+  "runtime": "python",
+  "entrypoint": "main.py",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "direction": { "type": "string", "enum": ["csv_to_json", "json_to_csv"], "default": "csv_to_json", "title": "Conversion Direction" },
+      "delimiter": { "type": "string", "default": ",", "title": "CSV Delimiter" },
+      "has_header": { "type": "boolean", "default": true, "title": "CSV Has Header Row" }
+    }
+  }
+}

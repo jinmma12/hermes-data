@@ -1,0 +1,17 @@
+{
+  "name": "split-records",
+  "version": "1.0.0",
+  "type": "algorithm",
+  "description": "Split a batch of records into individual items or smaller batches. Inspired by NiFi SplitText/SplitJson.",
+  "author": "hermes-core",
+  "license": "Apache-2.0",
+  "runtime": "python",
+  "entrypoint": "main.py",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "batch_size": { "type": "integer", "default": 1, "title": "Records Per Batch", "minimum": 1 },
+      "split_field": { "type": "string", "title": "Field to Split On", "description": "If set, split array field into separate records" }
+    }
+  }
+}

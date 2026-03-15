@@ -1,0 +1,18 @@
+{
+  "name": "merge-content",
+  "version": "1.0.0",
+  "type": "algorithm",
+  "description": "Merge multiple records into a single batch. Inspired by NiFi MergeContent processor.",
+  "author": "hermes-core",
+  "license": "Apache-2.0",
+  "runtime": "python",
+  "entrypoint": "main.py",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "merge_strategy": { "type": "string", "enum": ["array", "concat", "zip"], "default": "array", "title": "Merge Strategy" },
+      "wrap_field": { "type": "string", "title": "Wrap in Field", "description": "Wrap merged data in this field name" },
+      "add_metadata": { "type": "boolean", "default": true, "title": "Add Merge Metadata" }
+    }
+  }
+}

@@ -178,18 +178,18 @@ NiFi의 강점(per-item tracking, provenance)을 가져가되,
 - [ ] Split-brain 방지
 
 ### P2 Gaps
-- [ ] Authentication (JWT/OIDC)
-- [ ] RBAC (Viewer/Operator/Admin)
-- [ ] Audit Log (사용자 행동 추적)
+- [x] Authentication (JWT/OIDC)
+- [x] RBAC (Viewer/Operator/Admin)
+- [x] Audit Log (사용자 행동 추적)
 - [ ] Data Preview (파이프라인 실행 전 미리보기)
-- [ ] Content-Based Routing (조건부 분기)
+- [x] Content-Based Routing (조건부 분기)
 - [ ] Rate Limiting
-- [ ] Circuit Breaker
+- [x] Circuit Breaker
 
 ### Deployment
-- [ ] Kubernetes Helm Chart
+- [x] Kubernetes Helm Chart
 - [ ] K8s Operator (CRD for Pipeline)
-- [ ] Grafana Dashboard 템플릿 제공
+- [x] Grafana Dashboard 템플릿 제공
 - [ ] 운영 가이드 문서
 
 ### Testing

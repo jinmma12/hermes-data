@@ -72,21 +72,59 @@ const STAGE_META: Record<StageType, { label: string; color: string }> = {
 // Demo data (same schemas, used when no live API)
 // ============================================================
 
+// Processor Properties = HOW the processor works (goes into SETTINGS tab)
+// These are stable, processor-type-specific configuration
+const processorProperties: Record<StageType, { label: string; properties: { key: string; label: string; type: string; value: string; tooltip: string; options?: string[] }[] }> = {
+  [StageType.COLLECT]: {
+    label: 'Collector Properties',
+    properties: [
+      { key: 'url', label: 'API URL', type: 'text', value: 'https://vendor-a.com/api/orders', tooltip: 'The REST API endpoint to poll' },
+      { key: 'method', label: 'HTTP Method', type: 'select', value: 'GET', tooltip: 'HTTP method for requests', options: ['GET', 'POST', 'PUT'] },
+      { key: 'interval', label: 'Poll Interval', type: 'text', value: '5m', tooltip: 'How often to check for new data (e.g. 30s, 5m, 1h)' },
+      { key: 'timeout', label: 'Timeout (seconds)', type: 'number', value: '30', tooltip: 'Request timeout in seconds' },
+      { key: 'auth_type', label: 'Authentication', type: 'select', value: 'bearer', tooltip: 'Authentication method', options: ['none', 'bearer', 'basic', 'api_key'] },
+      { key: 'auth_token', label: 'Auth Token', type: 'password', value: '••••••••', tooltip: 'Authentication token or API key' },
+      { key: 'path_filter_regex', label: 'Path Filter (Regex)', type: 'text', value: '', tooltip: 'Regex pattern to filter file paths' },
+      { key: 'file_filter_regex', label: 'File Filter (Regex)', type: 'text', value: '.*\\.csv$', tooltip: 'Regex pattern to filter filenames' },
+    ],
+  },
+  [StageType.ALGORITHM]: {
+    label: 'Algorithm Properties',
+    properties: [
+      { key: 'execution_type', label: 'Execution Type', type: 'select', value: 'plugin', tooltip: 'How this algorithm is executed', options: ['plugin', 'script', 'http', 'docker'] },
+      { key: 'execution_ref', label: 'Execution Reference', type: 'text', value: 'ALGORITHM:anomaly-detector', tooltip: 'Plugin or script reference' },
+      { key: 'max_execution_time', label: 'Max Execution Time', type: 'text', value: '300s', tooltip: 'Maximum time before timeout' },
+      { key: 'input_format', label: 'Input Format', type: 'select', value: 'json', tooltip: 'Expected input data format', options: ['json', 'csv', 'raw'] },
+    ],
+  },
+  [StageType.TRANSFER]: {
+    label: 'Transfer Properties',
+    properties: [
+      { key: 'destination_type', label: 'Destination Type', type: 'select', value: 's3', tooltip: 'Where to send processed data', options: ['s3', 'database', 'webhook', 'file', 'elasticsearch'] },
+      { key: 'bucket', label: 'S3 Bucket', type: 'text', value: 'my-data-bucket', tooltip: 'Target S3 bucket name' },
+      { key: 'prefix', label: 'Key Prefix', type: 'text', value: 'results/', tooltip: 'Prefix for S3 object keys' },
+      { key: 'format', label: 'Output Format', type: 'select', value: 'json', tooltip: 'Output data format', options: ['json', 'csv', 'parquet'] },
+      { key: 'compression', label: 'Compression', type: 'select', value: 'gzip', tooltip: 'Compression algorithm', options: ['none', 'gzip', 'snappy', 'zstd'] },
+      { key: 'connection_string', label: 'Connection String', type: 'password', value: '••••••••', tooltip: 'Database or service connection string' },
+    ],
+  },
+};
+
+// Recipe = WHAT the operator tunes (versioned business parameters)
+// These change frequently and need versioning + diff
 const demoSchemas: Record<StageType, { schema: RJSFSchema; uiSchema: UiSchema; defaultConfig: Record<string, unknown> }> = {
   [StageType.COLLECT]: {
     schema: {
       type: 'object',
       properties: {
-        url: { type: 'string', title: 'API URL', description: 'The REST API endpoint to poll' },
-        method: { type: 'string', title: 'HTTP Method', enum: ['GET', 'POST'], default: 'GET' },
-        interval: { type: 'string', title: 'Poll Interval', default: '5m', description: 'How often to check for new data' },
-        timeout: { type: 'integer', title: 'Timeout (seconds)', default: 30, minimum: 5, maximum: 300 },
-        auth_type: { type: 'string', title: 'Authentication', enum: ['none', 'bearer', 'basic', 'api_key'], default: 'none' },
+        batch_size: { type: 'integer', title: 'Batch Size', default: 100, minimum: 1, maximum: 10000, description: 'Number of records to collect per batch' },
+        date_range_days: { type: 'integer', title: 'Date Range (days)', default: 7, description: 'How many days back to collect data' },
+        include_deleted: { type: 'boolean', title: 'Include Deleted Records', default: false },
+        custom_query_params: { type: 'string', title: 'Custom Query Parameters', description: 'Additional query string (key=value&key2=value2)' },
       },
-      required: ['url'],
     },
-    uiSchema: { url: { 'ui:placeholder': 'https://api.example.com/data' } },
-    defaultConfig: { url: 'https://vendor-a.com/api/orders', method: 'GET', interval: '5m', timeout: 30, auth_type: 'bearer' },
+    uiSchema: { custom_query_params: { 'ui:placeholder': 'status=active&region=us-west' } },
+    defaultConfig: { batch_size: 100, date_range_days: 7, include_deleted: false, custom_query_params: '' },
   },
   [StageType.ALGORITHM]: {
     schema: {
@@ -94,27 +132,29 @@ const demoSchemas: Record<StageType, { schema: RJSFSchema; uiSchema: UiSchema; d
       properties: {
         threshold: { type: 'number', title: 'Detection Threshold', minimum: 0, maximum: 10, default: 2.5, description: 'Higher values = more lenient detection' },
         method: { type: 'string', title: 'Analysis Method', enum: ['z-score', 'iqr', 'modified-z-score'], default: 'z-score' },
-        window_size: { type: 'integer', title: 'Window Size', default: 100, minimum: 10, maximum: 10000 },
+        window_size: { type: 'integer', title: 'Window Size', default: 100, minimum: 10, maximum: 10000, description: 'Number of data points for rolling analysis' },
         sensitivity: { type: 'string', title: 'Sensitivity', enum: ['low', 'medium', 'high'], default: 'medium' },
+        alert_on_anomaly: { type: 'boolean', title: 'Alert on Anomaly', default: true },
+        min_samples: { type: 'integer', title: 'Min Samples Required', default: 50, description: 'Minimum data points before analysis starts' },
       },
       required: ['threshold', 'method'],
     },
     uiSchema: { threshold: { 'ui:widget': 'range' } },
-    defaultConfig: { threshold: 2.5, method: 'z-score', window_size: 100, sensitivity: 'medium' },
+    defaultConfig: { threshold: 2.5, method: 'z-score', window_size: 100, sensitivity: 'medium', alert_on_anomaly: true, min_samples: 50 },
   },
   [StageType.TRANSFER]: {
     schema: {
       type: 'object',
       properties: {
-        bucket: { type: 'string', title: 'S3 Bucket', description: 'Target S3 bucket name' },
-        prefix: { type: 'string', title: 'Key Prefix', default: 'results/', description: 'Prefix for S3 object keys' },
-        format: { type: 'string', title: 'Output Format', enum: ['json', 'csv', 'parquet'], default: 'json' },
-        compression: { type: 'string', title: 'Compression', enum: ['none', 'gzip', 'snappy'], default: 'gzip' },
+        batch_mode: { type: 'boolean', title: 'Batch Mode', default: true, description: 'Combine records into batches before transfer' },
+        max_batch_size: { type: 'integer', title: 'Max Batch Size', default: 1000 },
+        include_metadata: { type: 'boolean', title: 'Include Metadata', default: true, description: 'Add pipeline/execution metadata to output' },
+        partition_by: { type: 'string', title: 'Partition By', enum: ['none', 'date', 'source', 'custom'], default: 'date', description: 'How to partition output data' },
+        custom_tags: { type: 'string', title: 'Custom Tags', description: 'Comma-separated tags for output data' },
       },
-      required: ['bucket'],
     },
     uiSchema: {},
-    defaultConfig: { bucket: 'my-data-bucket', prefix: 'results/', format: 'json', compression: 'gzip' },
+    defaultConfig: { batch_mode: true, max_batch_size: 1000, include_metadata: true, partition_by: 'date', custom_tags: '' },
   },
 };
 
@@ -646,7 +686,35 @@ export default function RecipeEditorPanel({
       {/* Tab Content */}
       <div className="flex-1 overflow-auto">
         {activeTab === 'SETTINGS' && (
-          <SettingsTab settings={settings} onChange={setSettings} onSave={onSaveSettings} />
+          <>
+            <SettingsTab settings={settings} onChange={setSettings} onSave={onSaveSettings} />
+            {/* Processor-specific properties */}
+            <div className="border-t border-slate-200 p-4">
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                <div className="flex border-b border-slate-300 bg-blue-50">
+                  <div className="w-[180px] shrink-0 border-r border-blue-200 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                    {processorProperties[stageType].label}
+                  </div>
+                  <div className="flex-1 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-blue-700">Value</div>
+                </div>
+                {processorProperties[stageType].properties.map((prop, idx) => (
+                  <PropertyRow key={prop.key} label={prop.label} tooltip={prop.tooltip} even={idx % 2 === 0}>
+                    {prop.type === 'select' ? (
+                      <select className="rounded border border-slate-300 px-2 py-1 text-xs" defaultValue={prop.value}>
+                        {prop.options?.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : prop.type === 'password' ? (
+                      <input type="password" className="w-full rounded border border-slate-300 px-2 py-1 text-xs" defaultValue={prop.value} />
+                    ) : prop.type === 'number' ? (
+                      <input type="number" className="w-20 rounded border border-slate-300 px-2 py-1 text-xs" defaultValue={prop.value} />
+                    ) : (
+                      <input type="text" className="w-full rounded border border-slate-300 px-2 py-1 text-xs" defaultValue={prop.value} />
+                    )}
+                  </PropertyRow>
+                ))}
+              </div>
+            </div>
+          </>
         )}
         {activeTab === 'RECIPE' && (
           <RecipeTab

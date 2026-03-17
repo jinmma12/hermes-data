@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ReactFlow,
   Background,
@@ -31,6 +31,8 @@ import ConnectorCatalog from '../components/designer/ConnectorCatalog';
 import type { ConnectorItem } from '../components/designer/ConnectorCatalog';
 import StatusBadge from '../components/common/StatusBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import ContextMenu from '../components/designer/ContextMenu';
+import { menuIcons } from '../components/designer/ContextMenu';
 
 // ============================================================
 // Custom Node Components
@@ -45,7 +47,10 @@ interface StageNodeData {
   stageId: number;
   refId: number;
   connectorCode?: string;
-  onOpenRecipe: (stageId: number, refId: number, stageType: StageType) => void;
+  recipeName?: string;
+  recipeVersion?: number;
+  onOpenSettings: (stageId: number, refId: number, stageType: StageType, connectorCode?: string) => void;
+  onOpenRecipe: (stageId: number, refId: number, stageType: StageType, connectorCode?: string) => void;
   onDeleteNode: (nodeId: string) => void;
   nodeId: string;
   [key: string]: unknown;
@@ -82,19 +87,36 @@ function CollectNode({ data }: { data: StageNodeData }) {
       </div>
       <div className="px-4 py-3">
         <p className="text-[11px] text-slate-500">{data.description}</p>
-        <button
-          onClick={() => data.onOpenRecipe(data.stageId, data.refId, data.stageType)}
-          className="mt-2 w-full rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[11px] font-medium text-blue-700 transition-colors hover:bg-blue-100"
-        >
-          Edit Recipe
-        </button>
+        {data.recipeName && (
+          <div className="mt-1.5 flex items-center gap-1.5 rounded bg-blue-50 px-2 py-1 text-[10px]">
+            <svg className="h-3 w-3 text-blue-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+            </svg>
+            <span className="font-medium text-blue-700">{data.recipeName}</span>
+            <span className="rounded bg-blue-200 px-1 py-0.5 text-[9px] font-bold text-blue-700">v{data.recipeVersion}</span>
+          </div>
+        )}
+        <div className="mt-2 flex gap-1.5">
+          <button
+            onClick={() => data.onOpenSettings(data.stageId, data.refId, data.stageType, data.connectorCode)}
+            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[10px] font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          >
+            Settings
+          </button>
+          <button
+            onClick={() => data.onOpenRecipe(data.stageId, data.refId, data.stageType, data.connectorCode)}
+            className="flex-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[10px] font-medium text-blue-700 transition-colors hover:bg-blue-100"
+          >
+            Recipe
+          </button>
+        </div>
       </div>
       <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-2 !border-blue-400 !bg-white" />
     </div>
   );
 }
 
-function AlgorithmNode({ data }: { data: StageNodeData }) {
+function ProcessNode({ data }: { data: StageNodeData }) {
   return (
     <div className={`w-56 rounded-xl border-2 bg-white shadow-md transition-all hover:shadow-lg ${
       data.isEnabled ? 'border-purple-300' : 'border-slate-200 opacity-60'
@@ -109,7 +131,7 @@ function AlgorithmNode({ data }: { data: StageNodeData }) {
               </svg>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-600">Algorithm</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-600">Process</p>
               <p className="text-xs font-medium text-slate-700">{data.label}</p>
             </div>
           </div>
@@ -125,19 +147,36 @@ function AlgorithmNode({ data }: { data: StageNodeData }) {
       </div>
       <div className="px-4 py-3">
         <p className="text-[11px] text-slate-500">{data.description}</p>
-        <button
-          onClick={() => data.onOpenRecipe(data.stageId, data.refId, data.stageType)}
-          className="mt-2 w-full rounded-lg border border-purple-200 bg-purple-50 px-2 py-1.5 text-[11px] font-medium text-purple-700 transition-colors hover:bg-purple-100"
-        >
-          Edit Recipe
-        </button>
+        {data.recipeName && (
+          <div className="mt-1.5 flex items-center gap-1.5 rounded bg-purple-50 px-2 py-1 text-[10px]">
+            <svg className="h-3 w-3 text-purple-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+            </svg>
+            <span className="font-medium text-purple-700">{data.recipeName}</span>
+            <span className="rounded bg-purple-200 px-1 py-0.5 text-[9px] font-bold text-purple-700">v{data.recipeVersion}</span>
+          </div>
+        )}
+        <div className="mt-2 flex gap-1.5">
+          <button
+            onClick={() => data.onOpenSettings(data.stageId, data.refId, data.stageType, data.connectorCode)}
+            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[10px] font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          >
+            Settings
+          </button>
+          <button
+            onClick={() => data.onOpenRecipe(data.stageId, data.refId, data.stageType, data.connectorCode)}
+            className="flex-1 rounded-lg border border-purple-200 bg-purple-50 px-2 py-1.5 text-[10px] font-medium text-purple-700 transition-colors hover:bg-purple-100"
+          >
+            Recipe
+          </button>
+        </div>
       </div>
       <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-2 !border-purple-400 !bg-white" />
     </div>
   );
 }
 
-function TransferNode({ data }: { data: StageNodeData }) {
+function ExportNode({ data }: { data: StageNodeData }) {
   return (
     <div className={`w-56 rounded-xl border-2 bg-white shadow-md transition-all hover:shadow-lg ${
       data.isEnabled ? 'border-emerald-300' : 'border-slate-200 opacity-60'
@@ -152,7 +191,7 @@ function TransferNode({ data }: { data: StageNodeData }) {
               </svg>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Transfer</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Export</p>
               <p className="text-xs font-medium text-slate-700">{data.label}</p>
             </div>
           </div>
@@ -168,12 +207,29 @@ function TransferNode({ data }: { data: StageNodeData }) {
       </div>
       <div className="px-4 py-3">
         <p className="text-[11px] text-slate-500">{data.description}</p>
-        <button
-          onClick={() => data.onOpenRecipe(data.stageId, data.refId, data.stageType)}
-          className="mt-2 w-full rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
-        >
-          Edit Recipe
-        </button>
+        {data.recipeName && (
+          <div className="mt-1.5 flex items-center gap-1.5 rounded bg-emerald-50 px-2 py-1 text-[10px]">
+            <svg className="h-3 w-3 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+            </svg>
+            <span className="font-medium text-emerald-700">{data.recipeName}</span>
+            <span className="rounded bg-emerald-200 px-1 py-0.5 text-[9px] font-bold text-emerald-700">v{data.recipeVersion}</span>
+          </div>
+        )}
+        <div className="mt-2 flex gap-1.5">
+          <button
+            onClick={() => data.onOpenSettings(data.stageId, data.refId, data.stageType, data.connectorCode)}
+            className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[10px] font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          >
+            Settings
+          </button>
+          <button
+            onClick={() => data.onOpenRecipe(data.stageId, data.refId, data.stageType, data.connectorCode)}
+            className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+          >
+            Recipe
+          </button>
+        </div>
       </div>
       <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-2 !border-emerald-400 !bg-white" />
     </div>
@@ -188,6 +244,7 @@ let nextNodeId = 100;
 
 function PipelineDesignerInner() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
 
@@ -201,19 +258,25 @@ function PipelineDesignerInner() {
     stageId: number;
     refId: number;
     stageType: StageType;
+    connectorCode?: string;
+    initialTab?: 'SETTINGS' | 'RECIPE';
   } | null>(null);
 
   const nodeTypes: NodeTypes = useMemo(
     () => ({
       collect: CollectNode,
-      algorithm: AlgorithmNode,
-      transfer: TransferNode,
+      process: ProcessNode,
+      export: ExportNode,
     }),
     []
   );
 
-  const handleOpenRecipe = useCallback((stageId: number, refId: number, stageType: StageType) => {
-    setRecipePanel({ stageId, refId, stageType });
+  const handleOpenSettings = useCallback((stageId: number, refId: number, stageType: StageType, connectorCode?: string) => {
+    setRecipePanel({ stageId, refId, stageType, connectorCode, initialTab: 'SETTINGS' as const });
+  }, []);
+
+  const handleOpenRecipe = useCallback((stageId: number, refId: number, stageType: StageType, connectorCode?: string) => {
+    setRecipePanel({ stageId, refId, stageType, connectorCode, initialTab: 'RECIPE' as const });
   }, []);
 
   const handleDeleteNode = useCallback((nodeId: string) => {
@@ -263,8 +326,8 @@ function PipelineDesignerInner() {
   function buildFlowFromStages(stages: PipelineStage[]) {
     const nodeTypeMap: Record<StageType, string> = {
       [StageType.COLLECT]: 'collect',
-      [StageType.ALGORITHM]: 'algorithm',
-      [StageType.TRANSFER]: 'transfer',
+      [StageType.PROCESS]: 'process',
+      [StageType.EXPORT]: 'export',
     };
 
     const newNodes: Node[] = stages.map((stage, idx) => ({
@@ -279,6 +342,7 @@ function PipelineDesignerInner() {
         isEnabled: stage.is_enabled,
         stageId: stage.id,
         refId: stage.ref_id,
+        onOpenSettings: handleOpenSettings,
         onOpenRecipe: handleOpenRecipe,
         onDeleteNode: handleDeleteNode,
         nodeId: `stage-${stage.id}`,
@@ -355,8 +419,8 @@ function PipelineDesignerInner() {
       const id = nextNodeId++;
       const nodeTypeMap: Record<StageType, string> = {
         [StageType.COLLECT]: 'collect',
-        [StageType.ALGORITHM]: 'algorithm',
-        [StageType.TRANSFER]: 'transfer',
+        [StageType.PROCESS]: 'process',
+        [StageType.EXPORT]: 'export',
       };
 
       const pos = position || getNextNodePosition();
@@ -374,6 +438,7 @@ function PipelineDesignerInner() {
           stageId: id,
           refId: 0,
           connectorCode: connector.code,
+          onOpenSettings: handleOpenSettings,
           onOpenRecipe: handleOpenRecipe,
           onDeleteNode: handleDeleteNode,
           nodeId: `stage-${id}`,
@@ -414,7 +479,7 @@ function PipelineDesignerInner() {
 
       setDirty(true);
     },
-    [nodes, handleOpenRecipe, handleDeleteNode]
+    [nodes, handleOpenSettings, handleOpenRecipe, handleDeleteNode]
   );
 
   // ---- Drag and Drop ----
@@ -459,7 +524,7 @@ function PipelineDesignerInner() {
           pipeline_instance_id: pipeline.id,
           stage_order: idx + 1,
           stage_type: d.stageType,
-          ref_type: d.stageType === StageType.COLLECT ? 'COLLECTOR' : d.stageType === StageType.ALGORITHM ? 'ALGORITHM' : 'TRANSFER',
+          ref_type: d.stageType === StageType.COLLECT ? 'COLLECTOR' : d.stageType === StageType.PROCESS ? 'PROCESS' : 'EXPORT',
           ref_id: d.refId,
           ref_name: d.label,
           is_enabled: d.isEnabled,
@@ -481,6 +546,24 @@ function PipelineDesignerInner() {
     }
     setSaving(false);
   }
+
+  // ---- Auto-save (NiFi style: save on every change) ----
+
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!dirty || !pipeline) return;
+
+    // Debounce: save 1 second after last change
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      handleSave();
+    }, 1000);
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [dirty, nodes.length, edges.length]);
 
   function computeStageOrder(): string[] {
     // Topological sort using edges
@@ -554,6 +637,8 @@ function PipelineDesignerInner() {
 
   // ---- Pipeline name editing ----
 
+  const [pipelineMenu, setPipelineMenu] = useState<{ x: number; y: number } | null>(null);
+  const [deleteModal, setDeleteModal] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
 
@@ -570,6 +655,73 @@ function PipelineDesignerInner() {
     setEditingName(false);
   }
 
+  // ---- Keyboard: Esc closes panels/menus ----
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'Escape') {
+        if (pipelineMenu) { setPipelineMenu(null); return; }
+        if (recipePanel) { setRecipePanel(null); return; }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [pipelineMenu, recipePanel]);
+
+  // ---- Pipeline-level actions ----
+
+  async function handleArchivePipeline() {
+    if (!pipeline) return;
+    try { await pipelines.archive(pipeline.id); } catch { /* demo */ }
+    setPipeline({ ...pipeline, status: PipelineStatus.ARCHIVED });
+  }
+
+  async function handleDeletePipeline() {
+    if (!pipeline) return;
+    try { await pipelines.delete(pipeline.id); } catch { /* demo */ }
+    navigate('/pipelines');
+  }
+
+  async function handleDuplicatePipeline() {
+    if (!pipeline) return;
+    try {
+      const dup = await pipelines.duplicate(pipeline.id);
+      navigate(`/pipelines/${dup.id}/designer`);
+    } catch {
+      // demo: navigate to new
+      navigate('/pipelines/new/designer');
+    }
+  }
+
+  const pipelineMenuItems = useMemo(() => {
+    if (!pipeline) return [];
+    const isDraft = pipeline.status === PipelineStatus.DRAFT;
+    return [
+      {
+        label: 'Duplicate',
+        icon: menuIcons.copy,
+        onClick: handleDuplicatePipeline,
+      },
+      ...(pipeline.status !== PipelineStatus.ARCHIVED && !isDraft
+        ? [{
+            label: 'Archive',
+            icon: 'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z',
+            onClick: handleArchivePipeline,
+          }]
+        : []),
+      { label: '', onClick: () => {}, divider: true },
+      {
+        label: isDraft ? 'Delete Pipeline' : 'Delete (Draft only)',
+        icon: menuIcons.delete,
+        onClick: () => isDraft ? setDeleteModal(true) : undefined,
+        danger: true,
+        disabled: !isDraft,
+      },
+    ];
+  }, [pipeline]);
+
   // ---- Render ----
 
   if (loading) return <LoadingSpinner message="Loading pipeline designer..." />;
@@ -580,6 +732,14 @@ function PipelineDesignerInner() {
       <div className="flex items-center justify-between rounded-t-xl border border-slate-200 bg-white px-5 py-3">
         <div className="flex items-center gap-4">
           <div>
+            {/* Breadcrumb */}
+            <div className="mb-1 flex items-center gap-1 text-xs text-slate-400">
+              <Link to="/pipelines" className="hover:text-vessel-600 transition-colors">Pipelines</Link>
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+              <span className="text-slate-600">{pipeline?.name || 'New Pipeline'}</span>
+            </div>
             <div className="flex items-center gap-2">
               {editingName ? (
                 <input
@@ -600,9 +760,18 @@ function PipelineDesignerInner() {
                 </h1>
               )}
               {pipeline && <StatusBadge status={pipeline.status} />}
-              {dirty && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                  Unsaved changes
+              {saving && (
+                <span className="flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                  <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Saving...
+                </span>
+              )}
+              {!saving && !dirty && pipeline && pipeline.id > 0 && (
+                <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
+                  Saved
                 </span>
               )}
             </div>
@@ -613,24 +782,19 @@ function PipelineDesignerInner() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* 3-dot Pipeline Menu */}
           <button
-            className="btn-secondary text-xs"
-            onClick={handleSave}
-            disabled={saving}
+            onClick={(e) => {
+              const rect = (e.target as HTMLElement).closest('button')!.getBoundingClientRect();
+              setPipelineMenu({ x: rect.right - 200, y: rect.bottom + 4 });
+            }}
+            className="btn-secondary !px-2 text-slate-500 hover:text-slate-700"
+            title="Pipeline actions"
           >
-            {saving ? (
-              <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            ) : (
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
-              </svg>
-            )}
-            Save
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+            </svg>
           </button>
-
           {pipeline?.status === PipelineStatus.ACTIVE ? (
             <button className="btn-secondary text-xs !border-red-200 !text-red-600 hover:!bg-red-50" onClick={handleDeactivate}>
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -688,8 +852,8 @@ function PipelineDesignerInner() {
               nodeColor={(node) => {
                 switch (node.type) {
                   case 'collect': return '#3b82f6';
-                  case 'algorithm': return '#a855f7';
-                  case 'transfer': return '#10b981';
+                  case 'process': return '#a855f7';
+                  case 'export': return '#10b981';
                   default: return '#94a3b8';
                 }
               }}
@@ -716,10 +880,52 @@ function PipelineDesignerInner() {
             stageId={recipePanel.stageId}
             refId={recipePanel.refId}
             stageType={recipePanel.stageType}
+            connectorCode={recipePanel.connectorCode}
+            initialTab={recipePanel.initialTab}
             onClose={() => setRecipePanel(null)}
           />
         )}
       </div>
+
+      {/* Pipeline 3-dot Context Menu */}
+      {pipelineMenu && (
+        <ContextMenu
+          x={pipelineMenu.x}
+          y={pipelineMenu.y}
+          items={pipelineMenuItems}
+          onClose={() => setPipelineMenu(null)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">Delete pipeline</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Delete pipeline &ldquo;{pipeline?.name}&rdquo;? This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setDeleteModal(false)} className="btn-secondary text-xs">Cancel</button>
+              <button
+                onClick={handleDeletePipeline}
+                className="rounded-lg bg-red-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

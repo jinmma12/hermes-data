@@ -1,12 +1,12 @@
 import axios from 'axios';
 import type {
   CollectorDefinition,
-  AlgorithmDefinition,
-  TransferDefinition,
+  ProcessDefinition,
+  ExportDefinition,
   DefinitionVersion,
   CollectorInstance,
-  AlgorithmInstance,
-  TransferInstance,
+  ProcessInstance,
+  ExportInstance,
   InstanceVersion,
   PipelineInstance,
   PipelineStage,
@@ -50,29 +50,29 @@ export const definitions = {
   createCollectorVersion: (id: number, data: Partial<DefinitionVersion>) =>
     api.post<DefinitionVersion>(`/definitions/collectors/${id}/versions`, data).then((r) => r.data),
 
-  // Algorithms
-  listAlgorithms: () =>
-    api.get<AlgorithmDefinition[]>('/definitions/algorithms').then((r) => r.data),
-  createAlgorithm: (data: Partial<AlgorithmDefinition>) =>
-    api.post<AlgorithmDefinition>('/definitions/algorithms', data).then((r) => r.data),
-  getAlgorithm: (id: number) =>
-    api.get<AlgorithmDefinition>(`/definitions/algorithms/${id}`).then((r) => r.data),
-  getAlgorithmVersions: (id: number) =>
-    api.get<DefinitionVersion[]>(`/definitions/algorithms/${id}/versions`).then((r) => r.data),
-  createAlgorithmVersion: (id: number, data: Partial<DefinitionVersion>) =>
-    api.post<DefinitionVersion>(`/definitions/algorithms/${id}/versions`, data).then((r) => r.data),
+  // Processors
+  listProcessors: () =>
+    api.get<ProcessDefinition[]>('/definitions/processors').then((r) => r.data),
+  createProcessor: (data: Partial<ProcessDefinition>) =>
+    api.post<ProcessDefinition>('/definitions/processors', data).then((r) => r.data),
+  getProcessor: (id: number) =>
+    api.get<ProcessDefinition>(`/definitions/processors/${id}`).then((r) => r.data),
+  getProcessorVersions: (id: number) =>
+    api.get<DefinitionVersion[]>(`/definitions/processors/${id}/versions`).then((r) => r.data),
+  createProcessorVersion: (id: number, data: Partial<DefinitionVersion>) =>
+    api.post<DefinitionVersion>(`/definitions/processors/${id}/versions`, data).then((r) => r.data),
 
-  // Transfers
-  listTransfers: () =>
-    api.get<TransferDefinition[]>('/definitions/transfers').then((r) => r.data),
-  createTransfer: (data: Partial<TransferDefinition>) =>
-    api.post<TransferDefinition>('/definitions/transfers', data).then((r) => r.data),
-  getTransfer: (id: number) =>
-    api.get<TransferDefinition>(`/definitions/transfers/${id}`).then((r) => r.data),
-  getTransferVersions: (id: number) =>
-    api.get<DefinitionVersion[]>(`/definitions/transfers/${id}/versions`).then((r) => r.data),
-  createTransferVersion: (id: number, data: Partial<DefinitionVersion>) =>
-    api.post<DefinitionVersion>(`/definitions/transfers/${id}/versions`, data).then((r) => r.data),
+  // Exports
+  listExports: () =>
+    api.get<ExportDefinition[]>('/definitions/exports').then((r) => r.data),
+  createExport: (data: Partial<ExportDefinition>) =>
+    api.post<ExportDefinition>('/definitions/exports', data).then((r) => r.data),
+  getExport: (id: number) =>
+    api.get<ExportDefinition>(`/definitions/exports/${id}`).then((r) => r.data),
+  getExportVersions: (id: number) =>
+    api.get<DefinitionVersion[]>(`/definitions/exports/${id}/versions`).then((r) => r.data),
+  createExportVersion: (id: number, data: Partial<DefinitionVersion>) =>
+    api.post<DefinitionVersion>(`/definitions/exports/${id}/versions`, data).then((r) => r.data),
 };
 
 // ============================================================
@@ -98,33 +98,33 @@ export const instances = {
   publishCollectorRecipe: (id: number, version: number) =>
     api.post(`/instances/collectors/${id}/recipes/${version}/publish`).then((r) => r.data),
 
-  // Algorithms
-  listAlgorithms: () =>
-    api.get<AlgorithmInstance[]>('/instances/algorithms').then((r) => r.data),
-  createAlgorithm: (data: Partial<AlgorithmInstance>) =>
-    api.post<AlgorithmInstance>('/instances/algorithms', data).then((r) => r.data),
-  getAlgorithm: (id: number) =>
-    api.get<AlgorithmInstance>(`/instances/algorithms/${id}`).then((r) => r.data),
-  updateAlgorithm: (id: number, data: Partial<AlgorithmInstance>) =>
-    api.put<AlgorithmInstance>(`/instances/algorithms/${id}`, data).then((r) => r.data),
-  getAlgorithmRecipes: (id: number) =>
-    api.get<Recipe[]>(`/instances/algorithms/${id}/recipes`).then((r) => r.data),
-  createAlgorithmRecipe: (id: number, data: { config_json: Record<string, unknown>; change_note: string }) =>
-    api.post<InstanceVersion>(`/instances/algorithms/${id}/recipes`, data).then((r) => r.data),
+  // Processors
+  listProcessors: () =>
+    api.get<ProcessInstance[]>('/instances/processors').then((r) => r.data),
+  createProcessor: (data: Partial<ProcessInstance>) =>
+    api.post<ProcessInstance>('/instances/processors', data).then((r) => r.data),
+  getProcessor: (id: number) =>
+    api.get<ProcessInstance>(`/instances/processors/${id}`).then((r) => r.data),
+  updateProcessor: (id: number, data: Partial<ProcessInstance>) =>
+    api.put<ProcessInstance>(`/instances/processors/${id}`, data).then((r) => r.data),
+  getProcessorRecipes: (id: number) =>
+    api.get<Recipe[]>(`/instances/processors/${id}/recipes`).then((r) => r.data),
+  createProcessorRecipe: (id: number, data: { config_json: Record<string, unknown>; change_note: string }) =>
+    api.post<InstanceVersion>(`/instances/processors/${id}/recipes`, data).then((r) => r.data),
 
-  // Transfers
-  listTransfers: () =>
-    api.get<TransferInstance[]>('/instances/transfers').then((r) => r.data),
-  createTransfer: (data: Partial<TransferInstance>) =>
-    api.post<TransferInstance>('/instances/transfers', data).then((r) => r.data),
-  getTransfer: (id: number) =>
-    api.get<TransferInstance>(`/instances/transfers/${id}`).then((r) => r.data),
-  updateTransfer: (id: number, data: Partial<TransferInstance>) =>
-    api.put<TransferInstance>(`/instances/transfers/${id}`, data).then((r) => r.data),
-  getTransferRecipes: (id: number) =>
-    api.get<Recipe[]>(`/instances/transfers/${id}/recipes`).then((r) => r.data),
-  createTransferRecipe: (id: number, data: { config_json: Record<string, unknown>; change_note: string }) =>
-    api.post<InstanceVersion>(`/instances/transfers/${id}/recipes`, data).then((r) => r.data),
+  // Exports
+  listExports: () =>
+    api.get<ExportInstance[]>('/instances/exports').then((r) => r.data),
+  createExport: (data: Partial<ExportInstance>) =>
+    api.post<ExportInstance>('/instances/exports', data).then((r) => r.data),
+  getExport: (id: number) =>
+    api.get<ExportInstance>(`/instances/exports/${id}`).then((r) => r.data),
+  updateExport: (id: number, data: Partial<ExportInstance>) =>
+    api.put<ExportInstance>(`/instances/exports/${id}`, data).then((r) => r.data),
+  getExportRecipes: (id: number) =>
+    api.get<Recipe[]>(`/instances/exports/${id}/recipes`).then((r) => r.data),
+  createExportRecipe: (id: number, data: { config_json: Record<string, unknown>; change_note: string }) =>
+    api.post<InstanceVersion>(`/instances/exports/${id}/recipes`, data).then((r) => r.data),
 };
 
 // ============================================================
@@ -162,6 +162,14 @@ export const pipelines = {
     api.get<PipelineActivation[]>(`/pipelines/${id}/activations`).then((r) => r.data),
   getStatus: (id: number) =>
     api.get<PipelineActivation>(`/pipelines/${id}/status`).then((r) => r.data),
+
+  // Pipeline management
+  archive: (id: number) =>
+    api.post<PipelineInstance>(`/pipelines/${id}/archive`).then((r) => r.data),
+  delete: (id: number) =>
+    api.delete(`/pipelines/${id}`).then((r) => r.data),
+  duplicate: (id: number) =>
+    api.post<PipelineInstance>(`/pipelines/${id}/duplicate`).then((r) => r.data),
 };
 
 // ============================================================

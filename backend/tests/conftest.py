@@ -60,9 +60,21 @@ from vessel.plugins.registry import PluginManifest, PluginRegistry, PluginType
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 
+def _remap_jsonb_to_json(metadata):
+    """Replace JSONB columns with JSON for SQLite compatibility."""
+    from sqlalchemy import JSON
+    from sqlalchemy.dialects.postgresql import JSONB
+
+    for table in metadata.tables.values():
+        for column in table.columns:
+            if isinstance(column.type, JSONB):
+                column.type = JSON()
+
+
 @pytest_asyncio.fixture
 async def async_engine():
     """Create an in-memory async SQLite engine with all tables."""
+    _remap_jsonb_to_json(Base.metadata)
     engine = create_async_engine(TEST_DB_URL, echo=False)
 
     async with engine.begin() as conn:

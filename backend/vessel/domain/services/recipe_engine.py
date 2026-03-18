@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import jsonschema
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vessel.domain.models.instance import (
@@ -78,9 +78,17 @@ class RecipeEngine:
         """
         _inst_cls, ver_cls = _get_models(instance_type)
 
-        # Determine next version number
+        # Determine next version number (use max version_no, not current recipe)
+        _, ver_cls_for_max = _get_models(instance_type)
+        max_stmt = (
+            select(func.max(ver_cls_for_max.version_no))
+            .where(ver_cls_for_max.instance_id == instance_id)
+        )
+        max_result = await self.db.execute(max_stmt)
+        max_version = max_result.scalar() or 0
+        next_version = max_version + 1
+
         current = await self.get_current_recipe(instance_type, instance_id)
-        next_version = (current.version_no + 1) if current else 1
 
         # Determine the def_version_id from instance or current recipe
         if current is not None:

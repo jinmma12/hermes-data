@@ -6,8 +6,8 @@ only a stub response was returned.
 
 These tests verify:
 1. Stub mode is detectable via is_connected property
-2. Stub responses are clearly marked as "stub"
-3. Health endpoint can surface degraded state
+2. Stub responses are clearly marked with status='stub'
+3. Callers have enough information to build a health check that surfaces degradation
 """
 
 from __future__ import annotations
@@ -37,26 +37,22 @@ async def test_stub_responses_clearly_marked(monkeypatch):
     client = engine_client_module.EngineClient(host="engine", port=50051)
     await client.connect()
 
-    # activate_pipeline
+    # Every method that talks to the engine must return status='stub'
     result = await client.activate_pipeline("test-pipeline-id")
-    assert result["status"] == "stub", "Stub response must have status='stub'"
+    assert result["status"] == "stub", "activate_pipeline stub must be detectable"
 
-    # deactivate_pipeline
     result = await client.deactivate_pipeline("test-pipeline-id")
-    assert result["status"] == "stub"
+    assert result["status"] == "stub", "deactivate_pipeline stub must be detectable"
 
-    # reprocess_work_item
     result = await client.reprocess_work_item("test-work-item-id")
-    assert result["status"] == "stub"
+    assert result["status"] == "stub", "reprocess_work_item stub must be detectable"
 
-    # get_engine_status
     result = await client.get_engine_status()
-    assert result["status"] == "stub"
+    assert result["status"] == "stub", "get_engine_status stub must be detectable"
     assert result["engine"] == "not_connected"
 
-    # get_pipeline_status
     result = await client.get_pipeline_status("test-pipeline-id")
-    assert result["status"] == "stub"
+    assert result["status"] == "stub", "get_pipeline_status stub must be detectable"
 
 
 @pytest.mark.asyncio
@@ -75,22 +71,31 @@ async def test_bulk_reprocess_stub_returns_count(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_production_mode_should_detect_stub_transport():
-    """Contract: a production health check should be able to detect stub mode.
+async def test_health_check_can_detect_degraded_engine_transport():
+    """Verify callers have enough data to build a degradation-aware health check.
 
-    This test documents the desired behavior: when the system is in
-    production mode, the health check must surface that the engine
-    transport is in stub mode so operators are aware.
+    This is NOT a production health endpoint test. It validates the contract
+    that EngineClient exposes sufficient state (is_connected + get_engine_status)
+    for a health check to surface engine transport degradation.
 
-    Currently EngineClient provides enough info via is_connected and
-    get_engine_status() for a health check to implement this.
+    A real production health check would:
+    1. Call client.is_connected -> False means degraded
+    2. Call client.get_engine_status() -> status='stub' means engine unreachable
+    3. Surface this in /health as { engine: 'degraded', reason: 'stub_mode' }
+
+    That health endpoint does not exist yet. This test documents the contract
+    that makes it implementable.
     """
     client = engine_client_module.EngineClient(host="engine", port=50051)
     # Without calling connect(), client is not connected
     assert not client.is_connected
 
     status = await client.get_engine_status()
-    # Health check can use these fields to detect degraded state
-    assert status["status"] == "stub"
-    assert status["engine"] == "not_connected"
-    assert "not yet connected" in status["message"].lower() or "not_connected" in status["engine"]
+
+    # Health check building blocks are present
+    assert status["status"] == "stub", "Status must indicate stub mode"
+    assert status["engine"] == "not_connected", "Engine field must indicate no connection"
+
+    # A health check implementation would use these two signals:
+    is_degraded = (not client.is_connected) or (status["status"] == "stub")
+    assert is_degraded, "Degradation must be detectable from available client state"

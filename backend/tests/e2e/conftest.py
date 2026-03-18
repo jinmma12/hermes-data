@@ -2,6 +2,14 @@
 
 Reuses the root conftest's in-memory SQLite engine and session fixtures.
 Adds service-layer fixtures for higher-level E2E operator flows.
+
+Design decisions:
+- FakeDispatcher replaces real plugin/HTTP dispatch with deterministic returns.
+- All orchestrator calls are wrapped in asyncio.wait_for() at the test level
+  to prevent hanging if event loop management differs across pytest-asyncio versions.
+- Step types use the current Python backend naming (ALGORITHM, TRANSFER) because
+  the ORM models and PipelineManager._INSTANCE_MODELS map have not been renamed
+  to PROCESS/EXPORT yet. See CLAUDE.md naming gap note.
 """
 
 from __future__ import annotations
@@ -31,6 +39,9 @@ from vessel.domain.services.execution_dispatcher import ExecutionDispatcher, Exe
 from vessel.domain.services.pipeline_manager import PipelineManager
 from vessel.domain.services.processing_orchestrator import ProcessingOrchestrator
 from vessel.domain.services.snapshot_resolver import SnapshotResolver
+
+# Hard timeout for any single test to prevent event-loop hangs.
+E2E_TIMEOUT_SECONDS = 10
 
 
 class FakeDispatcher(ExecutionDispatcher):
@@ -66,7 +77,12 @@ class FakeDispatcher(ExecutionDispatcher):
 
 @pytest_asyncio.fixture
 async def e2e_definitions(async_session: AsyncSession):
-    """Seed a complete set of definitions: collector, processor, exporter."""
+    """Seed a complete set of definitions: collector, processor, exporter.
+
+    NOTE: Python backend ORM still uses AlgorithmDefinition / TransferDefinition.
+    Frontend and .NET engine use PROCESS / EXPORT. This fixture uses the
+    Python-layer naming to match what PipelineManager actually validates.
+    """
     collector_def = CollectorDefinition(
         id=uuid.UUID("e0000000-0000-0000-0000-000000000001"),
         code="ftp-collector",

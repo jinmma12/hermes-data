@@ -1,7 +1,7 @@
 # Hermes - Architecture & Design Specification
 
-> **Hermes**: A lightweight, user-friendly data processing platform with
-> per-item tracking, visual recipe management, and first-class reprocessing.
+> **Hermes**: An operator-first orchestration and control plane for existing
+> data platforms, with per-item tracking, recipe/version control, and replay.
 >
 > "Data flows through Hermes like cargo through a ship —
 > every item tracked, every journey recorded, every route configurable."
@@ -15,28 +15,29 @@
 | **Name** | Hermes |
 | **Tagline** | "Carry your data. Track every item." |
 | **License** | Apache 2.0 |
-| **Position** | Between NiFi (heavy/powerful) and Singer (lightweight/limited) |
-| **Target User** | Non-SW engineers who need to configure data collection & processing |
+| **Position** | Operator-facing orchestrator over Kafka, DB, NiFi, FTP/SFTP, files, and APIs |
+| **Target User** | Operators and non-SW engineers who must connect changing data platforms without rewriting code |
 
 ### 1.1 What Hermes Is NOT
 
-- NOT a replacement for NiFi — can use NiFi as an execution backend
-- NOT a DAG orchestrator (Airflow/Dagster territory)
-- NOT a streaming platform (Kafka territory)
+- NOT a replacement for Kafka
+- NOT a replacement for your databases
+- NOT a replacement for NiFi — Hermes can orchestrate around NiFi
+- NOT primarily a DAG authoring system (Airflow/Dagster territory)
 - NOT limited to any industry domain
 
 ### 1.2 Why Hermes Exists
 
 | Existing Tool | Gap Hermes Fills |
 |---|---|
-| Apache NiFi | Too heavy (JVM 2GB+), complex UI, Java-only plugins |
-| Airbyte | EL only (no algorithm/processing), Docker-per-connector overhead |
-| n8n | Not designed for high-volume data processing, no item-level tracking |
-| Airflow/Dagster | Developer-centric (Python code), no per-item tracking |
-| Benthos | No UI, no item tracking, Go-only plugins |
-| Singer/Meltano | No UI, no orchestration, quality inconsistency |
+| Kafka / DB / FTP / NiFi | Powerful individually, fragmented operationally when used together |
+| Apache NiFi | Rich flow model but heavy and awkward for fast operator-driven recipe/version workflows |
+| Airbyte | Great for EL, weak for custom process/replay control |
+| n8n | Strong UX, weaker item-level provenance and replay semantics |
+| Airflow/Dagster | Developer-first orchestration, not operator-first runtime control |
+| Benthos / Singer | Good building blocks, but weak operator control plane and provenance UX |
 
-**Hermes's unique value**: NiFi-grade per-item tracking + n8n-grade visual UI + first-class reprocessing — in a lightweight package.
+**Hermes's unique value**: one control plane for existing data platforms — with NiFi-grade per-item tracking, n8n-grade operator UX, and first-class recipe/replay management.
 
 ---
 
@@ -58,7 +59,10 @@
 5. PLUGIN EVERYTHING
    → Collect, Process, Export 모두 플러그인으로 교체 가능
 
-6. NiFi-FRIENDLY, NOT NiFi-DEPENDENT
+6. ORCHESTRATE EXISTING PLATFORMS
+   → Kafka, DB, NiFi, FTP/SFTP, API를 대체하지 않고 연결/통제한다
+
+7. NiFi-FRIENDLY, NOT NiFi-DEPENDENT
    → NiFi가 있으면 활용, 없으면 자체 실행
 ```
 
@@ -66,9 +70,14 @@
 
 ## 3. High-Level Architecture
 
+Hermes should be understood as a control plane over existing data platforms.
+The Python layer exposes management/query APIs, the .NET engine owns runtime
+semantics, and external systems remain the systems of transport, storage,
+or legacy execution.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        VESSEL WEB UI (React)                        │
+│                        HERMES WEB UI (React)                        │
 │                                                                     │
 │  ┌─────────────┐ ┌─────────────┐ ┌───────────┐ ┌────────────────┐  │
 │  │ Pipeline     │ │ Recipe      │ │ Monitor   │ │ Job       │  │
@@ -86,14 +95,18 @@
 └────────────────────────────┬────────────────────────────────────────┘
                              │ REST API + WebSocket (live updates)
 ┌────────────────────────────▼────────────────────────────────────────┐
-│                      VESSEL CORE (API Server)                       │
+│                 HERMES CONTROL PLANE (Python API)                   │
 │                                                                     │
 │  ┌──────────────────────────────────────────────────────────────┐   │
-│  │                    Pipeline Manager                           │   │
+│  │                    Management Layer                           │   │
 │  │  - CRUD pipelines, steps, recipes                            │   │
 │  │  - Version control for all configurations                    │   │
-│  │  - Pipeline validation                                       │   │
+│  │  - Query/read APIs, auth, health, websocket forwarding       │   │
 │  └──────────────────────────────────────────────────────────────┘   │
+└────────────────────────────┬────────────────────────────────────────┘
+                             │ gRPC / runtime commands
+┌────────────────────────────▼────────────────────────────────────────┐
+│                    HERMES RUNTIME (.NET Engine)                     │
 │                                                                     │
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │                   Monitoring Engine                           │   │
@@ -126,21 +139,26 @@
 │  │  │    NIFI_FLOW → Trigger NiFi process group                │  │   │
 │  │  └─────────────────────────────────────────────────────────┘  │   │
 │  └──────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │                   Recipe Engine                               │   │
-│  │  - JSON Schema-based parameter definition                    │   │
-│  │  - Version history with diff/compare                         │   │
-│  │  - Environment overrides                                     │   │
-│  │  - Snapshot at execution time                                │   │
-│  └──────────────────────────────────────────────────────────────┘   │
 └────────────────────────────┬────────────────────────────────────────┘
                              │
-                    ┌────────▼────────┐
-                    │   PostgreSQL    │
-                    │   (jsonb)       │
-                    └─────────────────┘
+         ┌───────────────────┼───────────────────────────────────┐
+         ▼                   ▼                                   ▼
+   Kafka / MQ         DB / Files / Object Store         NiFi / FTP / APIs
+         └───────────────────┬───────────────────────────────────┘
+                             ▼
+                        PostgreSQL
+                  (state, recipes, provenance)
 ```
+
+### 3.1 Runtime Truth
+
+Hermes must keep one clear contract:
+
+- `.NET engine` is the source of truth for runtime behavior
+- `Python API` is the source of truth for management/query surfaces
+- `React` is the operator surface
+
+If these responsibilities blur, Hermes will over-promise and under-deliver.
 
 ---
 
@@ -485,14 +503,14 @@ Hermes plugins communicate via **JSON messages over stdin/stdout**.
 Any language can implement a plugin.
 
 ```
-VESSEL PLUGIN PROTOCOL v1
+HERMES PLUGIN PROTOCOL v1
 ─────────────────────────
 
-Direction: Hermes Core → Plugin (stdin)
+Direction: Hermes Runtime → Plugin (stdin)
   { "type": "CONFIGURE", "config": {...}, "context": {...} }
   { "type": "EXECUTE",   "input": {...} }
 
-Direction: Plugin → Hermes Core (stdout)
+Direction: Plugin → Hermes Runtime (stdout)
   { "type": "LOG",    "level": "INFO", "message": "..." }
   { "type": "OUTPUT", "data": {...} }
   { "type": "ERROR",  "code": "...", "message": "..." }
@@ -505,7 +523,30 @@ Exit codes:
   2 = configuration error
 ```
 
-### 6.2 Plugin Manifest
+### 6.2 Connector Config Model (3-Layer)
+
+Every connector configuration in Hermes is split into three distinct layers:
+
+| Layer | Manifest Key | Purpose | Versioned? |
+|---|---|---|---|
+| **Settings** | `settings_schema` | Connection, auth, endpoint, broker | No (instance-level) |
+| **Recipe** | `input_schema` | What to collect/process/export, business rules | **Yes** (versioned) |
+| **Runtime Policy** | fields in `settings_schema` marked as runtime | Poll interval, retry, timeout, circuit breaker | No (operational) |
+
+This separation matters because:
+- **Settings** change rarely (connection strings, credentials)
+- **Recipe** changes frequently (topics, filters, paths) and must be versioned for audit/rollback
+- **Runtime policy** is operational tuning, not business logic
+
+The UI renders these as two tabs:
+- **Settings tab**: Instance metadata + Connection settings + Runtime policy
+- **Properties tab**: Recipe fields + JSON editor
+
+All core connectors are manifest-driven. The `connectorConfigRegistry.ts` reads
+`hermes-plugin.json` manifests and uses `runtimeKeys` to split settings_schema
+into connection vs runtime policy sections.
+
+### 6.3 Plugin Manifest
 
 Each plugin ships with a `hermes-plugin.json`:
 
@@ -749,7 +790,7 @@ Hermes은 NiFi 없이 독립 실행되지만, NiFi가 있으면 활용 가능.
 
 ```
 ┌──────────────────────────────────────────┐
-│           VESSEL CORE                     │
+│           HERMES RUNTIME                  │
 │                                           │
 │  ExecutionDispatcher                      │
 │    │                                      │
@@ -1030,21 +1071,22 @@ async def process_job(job_id: int, trigger: TriggerType,
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  VESSEL TECHNOLOGY STACK                         │
+│  HERMES TECHNOLOGY STACK                         │
 ├─────────────────────────────────────────────────┤
 │                                                  │
-│  Backend API:                                    │
+│  Control Plane API:                              │
 │    Python 3.12 + FastAPI                         │
-│    OR                                            │
-│    C# ASP.NET Core 8                             │
-│    (both are first-class, choose per deployment) │
+│                                                  │
+│  Runtime Engine:                                 │
+│    .NET 8                                        │
+│    gRPC bridge + workers + execution runtime     │
 │                                                  │
 │  Database:                                       │
 │    PostgreSQL 15+ (jsonb for schemas/configs)    │
 │                                                  │
-│  ORM:                                            │
-│    SQLAlchemy 2.0 (Python)                       │
-│    OR EF Core 8 (C#)                             │
+│  ORM / Persistence:                              │
+│    SQLAlchemy 2.0 (Python control plane)         │
+│    EF Core 8 (.NET runtime, target direction)    │
 │                                                  │
 │  Task Queue:                                     │
 │    DB-based queue (prototype)                    │

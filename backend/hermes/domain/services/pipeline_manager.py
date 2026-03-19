@@ -239,6 +239,8 @@ class PipelineManager:
         self, pipeline_id: uuid.UUID, worker_id: str | None = None
     ) -> PipelineActivation:
         """Activate a pipeline, creating a new ``PipelineActivation``."""
+        from hermes.domain.services.stage_lifecycle import StageLifecycleManager
+
         pipeline = await self.get_pipeline(pipeline_id)
         if pipeline is None:
             raise ValueError(f"Pipeline {pipeline_id} not found")
@@ -260,6 +262,13 @@ class PipelineManager:
 
         pipeline.status = "ACTIVE"
         await self.db.flush()
+
+        # Initialise a RUNNING StageRuntimeState for every enabled step.
+        step_ids = [step.id for step in pipeline.steps]
+        if step_ids:
+            stage_manager = StageLifecycleManager(self.db)
+            await stage_manager.initialize_stage_states(activation.id, step_ids)
+
         logger.info("Activated pipeline %s → activation %s", pipeline_id, activation.id)
         return activation
 

@@ -234,6 +234,10 @@ export interface PipelineStage {
   on_error: OnErrorAction;
   retry_count: number;
   retry_delay_seconds: number;
+  process_settings_json?: Record<string, unknown>;
+  connection_config_json?: Record<string, unknown>;
+  runtime_policy_json?: Record<string, unknown>;
+  recipe_config_json?: Record<string, unknown>;
 }
 
 // ============================================================

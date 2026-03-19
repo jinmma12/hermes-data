@@ -28,6 +28,7 @@ import type { PipelineInstance, PipelineStage } from '../types';
 import { pipelines } from '../api/client';
 import { localPipelines } from '../api/localStore';
 import RecipeEditorPanel from './RecipeEditorPanel';
+import type { ConnectorConfigState, ProcessSettings } from './RecipeEditorPanel';
 import ConnectorCatalog from '../components/designer/ConnectorCatalog';
 import type { ConnectorItem } from '../components/designer/ConnectorCatalog';
 import StatusBadge from '../components/common/StatusBadge';
@@ -50,6 +51,10 @@ interface StageNodeData {
   connectorCode?: string;
   recipeName?: string;
   recipeVersion?: number;
+  processSettings?: ProcessSettings;
+  connectionConfig?: Record<string, unknown>;
+  runtimePolicy?: Record<string, unknown>;
+  recipeConfig?: Record<string, unknown>;
   onOpenSettings: (stageId: number, refId: number, stageType: StageType, connectorCode?: string, nodeId?: string) => void;
   onOpenProperties: (stageId: number, refId: number, stageType: StageType, connectorCode?: string, nodeId?: string) => void;
   onDeleteNode: (nodeId: string) => void;
@@ -282,7 +287,7 @@ function PipelineDesignerInner() {
   }, []);
 
   // When settings change in the panel, update the canvas node label + trigger save
-  const handleSaveSettings = useCallback((settings: { name: string; is_enabled: boolean; on_error: string; retry_count: number; retry_delay_seconds: number; penalty_duration: string; yield_duration: string; bulletin_level: string }) => {
+  const handleSaveNodeConfig = useCallback((nextConfig: ConnectorConfigState) => {
     if (!recipePanel) return;
     setNodes((nds) => nds.map((n) => {
       if (n.id === recipePanel.nodeId) {
@@ -290,9 +295,13 @@ function PipelineDesignerInner() {
           ...n,
           data: {
             ...n.data,
-            label: settings.name,
-            instanceName: settings.name,
-            isEnabled: settings.is_enabled,
+            label: nextConfig.processSettings.name,
+            instanceName: nextConfig.processSettings.name,
+            isEnabled: nextConfig.processSettings.is_enabled,
+            processSettings: nextConfig.processSettings,
+            connectionConfig: nextConfig.connectionConfig,
+            runtimePolicy: nextConfig.runtimePolicy,
+            recipeConfig: nextConfig.recipeConfig,
           },
         };
       }
@@ -380,6 +389,10 @@ function PipelineDesignerInner() {
         isEnabled: stage.is_enabled,
         stageId: stage.id,
         refId: stage.ref_id,
+        processSettings: stage.process_settings_json as ProcessSettings | undefined,
+        connectionConfig: stage.connection_config_json,
+        runtimePolicy: stage.runtime_policy_json,
+        recipeConfig: stage.recipe_config_json,
         onOpenSettings: handleOpenSettings,
         onOpenProperties: handleOpenProperties,
         onDeleteNode: handleDeleteNode,
@@ -476,6 +489,19 @@ function PipelineDesignerInner() {
           stageId: id,
           refId: 0,
           connectorCode: connector.code,
+          processSettings: {
+            name: connector.name,
+            is_enabled: true,
+            on_error: 'STOP',
+            retry_count: 3,
+            retry_delay_seconds: 10,
+            penalty_duration: '30s',
+            yield_duration: '1s',
+            bulletin_level: 'WARN',
+          },
+          connectionConfig: {},
+          runtimePolicy: {},
+          recipeConfig: {},
           onOpenSettings: handleOpenSettings,
           onOpenProperties: handleOpenProperties,
           onDeleteNode: handleDeleteNode,
@@ -566,9 +592,13 @@ function PipelineDesignerInner() {
           ref_id: d.refId,
           ref_name: d.label,
           is_enabled: d.isEnabled,
-          on_error: 'STOP' as PipelineStage['on_error'],
-          retry_count: 0,
-          retry_delay_seconds: 0,
+          on_error: (d.processSettings?.on_error || 'STOP') as PipelineStage['on_error'],
+          retry_count: d.processSettings?.retry_count || 0,
+          retry_delay_seconds: d.processSettings?.retry_delay_seconds || 0,
+          process_settings_json: d.processSettings,
+          connection_config_json: d.connectionConfig,
+          runtime_policy_json: d.runtimePolicy,
+          recipe_config_json: d.recipeConfig,
         };
       }).filter(Boolean) as Partial<PipelineStage>[];
 
@@ -791,7 +821,7 @@ function PipelineDesignerInner() {
           <div>
             {/* Breadcrumb */}
             <div className="mb-1 flex items-center gap-1 text-xs text-slate-400">
-              <Link to="/pipelines" className="hover:text-vessel-600 transition-colors">Pipelines</Link>
+              <Link to="/pipelines" className="hover:text-hermes-600 transition-colors">Pipelines</Link>
               <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
               </svg>
@@ -805,11 +835,11 @@ function PipelineDesignerInner() {
                   onChange={(e) => setNameValue(e.target.value)}
                   onBlur={commitName}
                   onKeyDown={(e) => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') setEditingName(false); }}
-                  className="rounded border border-vessel-300 px-2 py-0.5 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-vessel-400"
+                  className="rounded border border-hermes-300 px-2 py-0.5 text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-hermes-400"
                 />
               ) : (
                 <h1
-                  className="cursor-pointer text-lg font-bold text-slate-900 hover:text-vessel-700"
+                  className="cursor-pointer text-lg font-bold text-slate-900 hover:text-hermes-700"
                   onClick={startEditName}
                   title="Click to rename"
                 >
@@ -940,7 +970,7 @@ function PipelineDesignerInner() {
             connectorCode={recipePanel.connectorCode}
             initialTab={recipePanel.initialTab}
             processorName={nodes.find(n => n.id === recipePanel.nodeId)?.data?.label as string}
-            processSettings={{
+            processSettings={(nodes.find(n => n.id === recipePanel.nodeId)?.data?.processSettings as ProcessSettings | undefined) ?? {
               name: (nodes.find(n => n.id === recipePanel.nodeId)?.data?.label as string) || 'Unnamed',
               is_enabled: (nodes.find(n => n.id === recipePanel.nodeId)?.data?.isEnabled as boolean) ?? true,
               on_error: 'STOP',
@@ -950,7 +980,10 @@ function PipelineDesignerInner() {
               yield_duration: '1s',
               bulletin_level: 'WARN',
             }}
-            onSaveSettings={handleSaveSettings}
+            initialConnectionConfig={(nodes.find(n => n.id === recipePanel.nodeId)?.data?.connectionConfig as Record<string, unknown> | undefined) ?? {}}
+            initialRuntimePolicy={(nodes.find(n => n.id === recipePanel.nodeId)?.data?.runtimePolicy as Record<string, unknown> | undefined) ?? {}}
+            initialRecipeConfig={(nodes.find(n => n.id === recipePanel.nodeId)?.data?.recipeConfig as Record<string, unknown> | undefined) ?? {}}
+            onSaveConfig={handleSaveNodeConfig}
             onClose={() => setRecipePanel(null)}
           />
         )}

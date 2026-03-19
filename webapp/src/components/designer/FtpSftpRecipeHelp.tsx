@@ -207,14 +207,15 @@ function buildSummary(config: Record<string, unknown>): string[] {
 /** Generate date strings matching runtime semantics: range(lookback_days + 1) = today inclusive */
 function generateDateStrings(format: string, lookbackDays: number): string[] {
   const dates: string[] = [];
-  const now = new Date(); // UTC-ish — matches runtime which uses datetime.now(timezone.utc)
+  const now = new Date();
   // Runtime: for day_offset in range(lookback_days + 1) — today included
   for (let d = 0; d <= lookbackDays; d++) {
     const dt = new Date(now);
-    dt.setDate(dt.getDate() - d);
-    const yyyy = dt.getFullYear().toString();
-    const mm = (dt.getMonth() + 1).toString().padStart(2, '0');
-    const dd = dt.getDate().toString().padStart(2, '0');
+    dt.setUTCDate(dt.getUTCDate() - d);
+    // Use UTC methods to match runtime's datetime.now(timezone.utc)
+    const yyyy = dt.getUTCFullYear().toString();
+    const mm = (dt.getUTCMonth() + 1).toString().padStart(2, '0');
+    const dd = dt.getUTCDate().toString().padStart(2, '0');
     if (format === 'yyyyMMdd') dates.push(`${yyyy}${mm}${dd}`);
     else if (format === 'yyyy/MM/dd') dates.push(`${yyyy}/${mm}/${dd}`);
     else if (format === 'yyyy-MM-dd') dates.push(`${yyyy}-${mm}-${dd}`);
@@ -227,17 +228,17 @@ function matchesFolderPattern(path: string, folderPattern: Record<string, unknow
   if (!folderPattern.enabled) return { pass: true, reason: '' };
   const format = (folderPattern.format as string) || 'yyyyMMdd';
   const lookback = (folderPattern.lookback_days ?? folderPattern.lookbackDays ?? 7) as number;
-  // Timezone: runtime reads tz_name but uses datetime.now(timezone.utc) — tz is not applied.
-  // Preview matches this: no timezone adjustment applied.
   const dateStrings = generateDateStrings(format, lookback);
 
-  // Runtime: folder_name == date_str or path.endswith(date_str)
-  const folderName = path.split('/').filter(Boolean).slice(-2, -1)[0] || ''; // parent folder of file
-  const matched = dateStrings.some((ds) => folderName === ds || path.includes(ds));
+  // Runtime (main.py:571): folder_name == date_str or path.endswith(date_str)
+  // folder_name = PurePosixPath(path).name — the last path component (parent folder of file)
+  const parts = path.split('/').filter(Boolean);
+  const folderName = parts.length >= 2 ? parts[parts.length - 2] : '';
+  const matched = dateStrings.some((ds) => folderName === ds || path.endsWith(ds));
   if (matched) {
-    return { pass: true, reason: `Folder date match (${format}, today + ${lookback}d back)` };
+    return { pass: true, reason: `Folder date match (${format}, today + ${lookback}d back, UTC)` };
   }
-  return { pass: false, reason: `No date match for ${format} within last ${lookback + 1} days (today inclusive)` };
+  return { pass: false, reason: `No date match for ${format} within last ${lookback + 1} days (today inclusive, UTC)` };
 }
 
 // ── Path Preview Tester ─────────────────────────────────────

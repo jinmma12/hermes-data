@@ -200,12 +200,60 @@ function buildSummary(config: Record<string, unknown>): string[] {
   return lines;
 }
 
+// ── Folder Pattern Date Matching ─────────────────────────────
+
+/** Supported date formats: yyyyMMdd, yyyy/MM/dd, yyyy-MM-dd */
+function generateDateStrings(format: string, lookbackDays: number, tz?: string): string[] {
+  const dates: string[] = [];
+  const now = new Date();
+  // Simple timezone offset: if tz contains 'Seoul' or 'KST', add 9h
+  if (tz && /(Seoul|KST|Asia\/Seoul)/i.test(tz)) {
+    now.setHours(now.getHours() + 9);
+  }
+  for (let d = 0; d < lookbackDays; d++) {
+    const dt = new Date(now);
+    dt.setDate(dt.getDate() - d);
+    const yyyy = dt.getFullYear().toString();
+    const mm = (dt.getMonth() + 1).toString().padStart(2, '0');
+    const dd = dt.getDate().toString().padStart(2, '0');
+    if (format === 'yyyyMMdd') dates.push(`${yyyy}${mm}${dd}`);
+    else if (format === 'yyyy/MM/dd') dates.push(`${yyyy}/${mm}/${dd}`);
+    else if (format === 'yyyy-MM-dd') dates.push(`${yyyy}-${mm}-${dd}`);
+    else dates.push(`${yyyy}${mm}${dd}`); // fallback
+  }
+  return dates;
+}
+
+function matchesFolderPattern(path: string, folderPattern: Record<string, unknown>): { pass: boolean; reason: string } {
+  if (!folderPattern.enabled) return { pass: true, reason: '' };
+  const format = (folderPattern.format as string) || 'yyyyMMdd';
+  const lookback = (folderPattern.lookback_days ?? folderPattern.lookbackDays ?? 7) as number;
+  const tz = (folderPattern.timezone as string) || 'UTC';
+  const dateStrings = generateDateStrings(format, lookback, tz);
+
+  const matched = dateStrings.some((ds) => path.includes(ds));
+  if (matched) {
+    return { pass: true, reason: `Folder date matches (format: ${format}, lookback: ${lookback}d)` };
+  }
+  return { pass: false, reason: `No date match in path for ${format} within last ${lookback} days` };
+}
+
 // ── Path Preview Tester ─────────────────────────────────────
 
 function testPath(path: string, config: Record<string, unknown>): { match: boolean; reasons: string[] } {
   const reasons: string[] = [];
   const fileFilter = (config.file_filter || config.fileFilter || {}) as Record<string, unknown>;
+  const folderPattern = (config.folder_pattern || config.folderPattern || {}) as Record<string, unknown>;
   const filename = path.split('/').pop() || '';
+
+  // folder_pattern check (date-based folder filtering)
+  if (folderPattern && folderPattern.enabled) {
+    const fpResult = matchesFolderPattern(path, folderPattern);
+    if (!fpResult.pass) {
+      return { match: false, reasons: [fpResult.reason] };
+    }
+    reasons.push(fpResult.reason);
+  }
 
   // filename regex
   const filenameRegex = (fileFilter.filename_regex || fileFilter.filenameRegex) as string | undefined;
@@ -215,7 +263,7 @@ function testPath(path: string, config: Record<string, unknown>): { match: boole
       if (re.test(filename)) {
         reasons.push(`Filename matches: ${filenameRegex}`);
       } else {
-        return { match: false, reasons: [`Filename "${filename}" does not match: ${filenameRegex}`] };
+        return { match: false, reasons: [...reasons, `Filename "${filename}" does not match: ${filenameRegex}`] };
       }
     } catch {
       reasons.push(`Invalid regex: ${filenameRegex}`);
@@ -230,7 +278,7 @@ function testPath(path: string, config: Record<string, unknown>): { match: boole
       if (re.test(path)) {
         reasons.push(`Path matches: ${pathRegex}`);
       } else {
-        return { match: false, reasons: [`Path "${path}" does not match: ${pathRegex}`] };
+        return { match: false, reasons: [...reasons, `Path "${path}" does not match: ${pathRegex}`] };
       }
     } catch {
       reasons.push(`Invalid regex: ${pathRegex}`);
@@ -242,7 +290,7 @@ function testPath(path: string, config: Record<string, unknown>): { match: boole
   for (const pattern of excludes) {
     try {
       if (new RegExp(pattern).test(filename)) {
-        return { match: false, reasons: [`Excluded by pattern: ${pattern}`] };
+        return { match: false, reasons: [...reasons, `Excluded by pattern: ${pattern}`] };
       }
     } catch { /* skip invalid */ }
   }
@@ -378,6 +426,27 @@ export default function FtpSftpRecipeHelp({ recipeConfig, onApplyPreset }: FtpSf
                 <li><code className="bg-slate-100 px-1 text-[10px]">ALL</code> — every matching file every poll (caution: may re-collect)</li>
               </ul>
             </div>
+            {/* Completion & Post-Action */}
+            <div>
+              <p className="font-semibold text-slate-800">Completion Check</p>
+              <ul className="mt-1 space-y-0.5">
+                <li><code className="bg-slate-100 px-1 text-[10px]">NONE</code> — collect immediately (no safety check)</li>
+                <li><code className="bg-slate-100 px-1 text-[10px]">MARKER_FILE</code> — requires a companion file (e.g. <code>data.csv.done</code>) to exist before collecting</li>
+                <li><code className="bg-slate-100 px-1 text-[10px]">SIZE_STABLE</code> — waits until file size stops changing for the configured duration</li>
+              </ul>
+              <p className="mt-1 text-[10px] text-slate-500">Completion checks are runtime-only and cannot be fully simulated in the local path preview.</p>
+            </div>
+            <div>
+              <p className="font-semibold text-slate-800">Post-Collection Action</p>
+              <p className="text-slate-600">These are actions taken on the <em>remote server</em> after successful collection. They are not file selection rules.</p>
+              <ul className="mt-1 space-y-0.5">
+                <li><code className="bg-slate-100 px-1 text-[10px]">KEEP</code> — leave file in place</li>
+                <li><code className="bg-slate-100 px-1 text-[10px]">MOVE</code> — move to archive directory</li>
+                <li><code className="bg-slate-100 px-1 text-[10px]">RENAME</code> — add suffix (e.g. <code>.processed</code>)</li>
+                <li><code className="bg-slate-100 px-1 text-[10px]">DELETE</code> — remove after collection</li>
+              </ul>
+              <p className="mt-1 text-[10px] text-slate-500">Post-collection actions are remote server mutations and are never part of the preview.</p>
+            </div>
             {/* Operator Warnings */}
             <div className="rounded-lg border border-red-200 bg-red-50 p-3">
               <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-red-700">Operator Warnings</p>
@@ -395,6 +464,17 @@ export default function FtpSftpRecipeHelp({ recipeConfig, onApplyPreset }: FtpSf
       {/* Path Preview Section */}
       {activeSection === 'preview' && (
         <div className="space-y-2">
+          {/* Local Preview Only badge */}
+          <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <svg className="h-4 w-4 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <div>
+              <p className="text-[10px] font-bold text-amber-800">Local Preview Only</p>
+              <p className="text-[10px] text-amber-700">This tests your regex and folder pattern rules against sample paths you provide. It does not connect to the actual FTP/SFTP server.</p>
+            </div>
+          </div>
+
           <textarea
             value={testPaths}
             onChange={(e) => setTestPaths(e.target.value)}
@@ -421,6 +501,32 @@ export default function FtpSftpRecipeHelp({ recipeConfig, onApplyPreset }: FtpSf
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Preview Scope */}
+          <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">Preview Scope</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+              <div>
+                <p className="font-semibold text-green-700">Covers</p>
+                <ul className="mt-0.5 space-y-0.5 text-slate-600">
+                  <li>Filename regex matching</li>
+                  <li>Path regex matching</li>
+                  <li>Exclude patterns</li>
+                  <li>Folder pattern (date matching)</li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold text-amber-700">Does Not Cover</p>
+                <ul className="mt-0.5 space-y-0.5 text-slate-600">
+                  <li>Actual remote file listing</li>
+                  <li>Marker file existence</li>
+                  <li>Size stability over time</li>
+                  <li>Post-collection actions</li>
+                  <li>File size/age filtering</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       )}

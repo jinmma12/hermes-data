@@ -1,6 +1,6 @@
 # Hermes Stream Roadmap
 
-> Last updated: 2026-03-18
+> Last updated: 2026-03-19
 > Current priority: Integrity-first runtime hardening
 > Current state: strong prototype, not yet production-trustworthy
 
@@ -152,6 +152,56 @@ Everything else can come later.
 
 ---
 
+## Current Progress Snapshot
+
+This section is the practical answer to "where are we now?"
+
+### Delivered recently
+
+- Hermes rebrand across major docs and UI surfaces
+- roadmap refocused around integrity-first delivery
+- connector editor moved to a 3-layer model:
+  - `process_settings`
+  - `connection_config`
+  - `runtime_policy`
+  - `recipe_config`
+- core connector UI moved to manifest-driven configuration instead of hardcoded-only forms
+- FTP/SFTP operator docs, examples, presets, help content, and path-preview UX landed
+- connector config contract and capability-mismatch discussions are now explicit in docs
+- stage lifecycle and queue model are now documented
+- backend tests now lock in the distinction between:
+  - pipeline deactivate
+  - stage stop/resume
+  - queue backlog visibility
+
+### Delivered, but still not "closed"
+
+- stage stop/resume currently exists as a service/model/test contract, not yet as fully enforced runtime dispatch control
+- queue visibility currently exists as derived queue summaries, not yet as a first-class API/UI runtime surface
+- FTP/SFTP operator UX is much stronger, but .NET runtime parity is still incomplete
+- connector UI is manifest-driven, but runtime capability enforcement is still ahead of some actual implementations
+- local draft behavior exists, but final persistence-mode contract and production restrictions still need tightening
+
+### Practical phase estimate
+
+If we map the real state to this roadmap:
+
+- Phase 0: complete
+- Phase 1: complete
+- Phase 2: in progress, with meaningful progress on contract definition and tests
+- Phase 3: started, but not yet at trustworthy runtime level
+- Phase 4: started on FTP/SFTP operator UX only
+- Phase 5: still mostly design/test territory, not runtime-complete
+
+Short version:
+
+- product concept and operator UX direction: far along
+- runtime integrity: mid-build
+- production trust: not there yet
+- distributed trust: early
+
+---
+
 ## Phase 0: Design and Prototype Foundation ✅ COMPLETE
 
 Delivered:
@@ -249,6 +299,26 @@ Acceptance criteria:
 2. DLQ entries preserve source identity and failure reason
 3. retry behavior is deterministic and configurable
 
+### 2E. Stage Lifecycle and Queue Semantics
+
+This item was elevated because the current system was too pipeline-centric for actual operator use.
+
+- [x] Document the distinction between pipeline deactivate and stage stop/resume
+- [x] Add backend service/model support for per-stage runtime state
+- [x] Add queue summary tests for stopped-stage backlog and resume/drain flows
+- [ ] Enforce stage runtime state in real worker/orchestrator dispatch
+- [ ] Expose stage runtime state via API and UI
+- [ ] Expose queue visibility as an operator-facing runtime surface
+- [ ] Add provenance views tied to stopped-stage backlog inspection
+- [ ] Add migration and deploy-safe schema rollout for `stage_runtime_states`
+
+Acceptance criteria:
+
+1. stage stop is distinct from pipeline deactivate in both model and runtime behavior
+2. stopped stages actually block new dispatch, not just report state
+3. operators can inspect backlog and provenance before resume
+4. queue/runtime state survives normal deployment and schema rollout
+
 ---
 
 ## Phase 3: Core Connectors to Production-Ready
@@ -344,8 +414,8 @@ Acceptance criteria:
 Once runtime behavior is trustworthy, the UI can become a real operating console.
 
 - [ ] support-level badges in UI: Production-Ready/Beta/Prototype
-- [ ] connector capability pages with operating notes
-- [ ] test-connection and preview behavior aligned with runtime reality
+- [~] connector capability pages with operating notes
+- [~] test-connection and preview behavior aligned with runtime reality
 - [ ] replay UX showing original vs latest recipe clearly
 - [ ] DLQ explorer and replay queue UX
 - [ ] cluster health and connector health dashboards
@@ -355,6 +425,15 @@ Acceptance criteria:
 1. UI does not imply unsupported runtime capability
 2. operator can distinguish preview success from production runtime readiness
 3. replay intent and connector support level are obvious
+
+Progress note:
+
+- FTP/SFTP now has a real operator-help slice:
+  - help content
+  - examples/presets
+  - selection summary
+  - local path preview
+- This is useful progress, but it is still connector-specific and not yet a complete trust-surface system.
 
 ---
 
@@ -504,16 +583,18 @@ docs/*
 
 1. block or expose stub mode in production
 2. define persisted checkpoint and dedup strategy
-3. close FTP/SFTP runtime gaps
-4. define Kafka consumer commit semantics
-5. land Kafka producer and DB writer MVP
+3. connect stage runtime state to actual worker/orchestrator dispatch
+4. close FTP/SFTP runtime gaps
+5. define Kafka consumer commit semantics
+6. land Kafka producer and DB writer MVP
 
 ### Next 4-6 weeks
 
 1. real-service integration suite for FTP/SFTP/Kafka/PostgreSQL
 2. replay/reprocess audit completion
-3. support-level badges in docs and UI
-4. restart and failover contract tests
+3. support-level badges and capability surfaces in docs and UI
+4. queue/runtime API exposure for stopped-stage inspection
+5. restart and failover contract tests
 
 ### After that
 
@@ -533,6 +614,14 @@ docs/*
 - moved distributed runtime after single-node integrity hardening
 - elevated Kafka producer/consumer and FTP/SFTP to core trustworthy slice
 - added connector acceptance standard and short-term execution plan
+
+### 2026-03-19
+
+- added progress snapshot section to distinguish delivered UX/design work from closed runtime guarantees
+- reflected manifest-driven 3-layer connector configuration work
+- reflected FTP/SFTP operator docs, presets, help, and preview UX progress
+- added Stage Lifecycle and Queue Semantics to Phase 2
+- clarified that stage stop/queue work is currently model/test-level, not yet fully enforced runtime dispatch behavior
 
 ### 2026-03-16
 

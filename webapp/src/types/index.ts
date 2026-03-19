@@ -242,6 +242,31 @@ export interface PipelineStage {
 }
 
 // ============================================================
+// Stage Runtime (per-stage stop/resume control)
+// ============================================================
+
+export type StageRuntimeStatus = 'RUNNING' | 'STOPPED' | 'DRAINING' | 'BLOCKED' | 'ERROR';
+
+export interface StageRuntimeState {
+  pipeline_activation_id: string;
+  pipeline_step_id: string;
+  runtime_status: StageRuntimeStatus;
+  stopped_at: string | null;
+  stopped_by: string | null;
+  resumed_at: string | null;
+}
+
+export interface StageQueueSummary {
+  stage_id: string;
+  stage_order: number;
+  stage_type: string;
+  runtime_status: StageRuntimeStatus;
+  queued_count: number;
+  in_flight_count: number;
+  completed_count: number;
+}
+
+// ============================================================
 // Monitoring Layer
 // ============================================================
 

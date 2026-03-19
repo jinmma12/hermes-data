@@ -20,6 +20,8 @@ import type {
   MonitorStats,
   PluginInfo,
   Recipe,
+  StageRuntimeState,
+  StageQueueSummary,
 } from '../types';
 
 // ============================================================
@@ -170,6 +172,16 @@ export const pipelines = {
     api.delete(`/pipelines/${id}`).then((r) => r.data),
   duplicate: (id: number) =>
     api.post<PipelineInstance>(`/pipelines/${id}/duplicate`).then((r) => r.data),
+
+  // Stage runtime control
+  getStageRuntimeStates: (pipelineId: number, activationId: string) =>
+    api.get<StageRuntimeState[]>(`/pipelines/${pipelineId}/activations/${activationId}/stages/runtime`).then((r) => r.data),
+  stopStageRuntime: (pipelineId: number, activationId: string, stageId: string, stoppedBy = 'operator') =>
+    api.post<StageRuntimeState>(`/pipelines/${pipelineId}/activations/${activationId}/stages/${stageId}/stop`, { stopped_by: stoppedBy }).then((r) => r.data),
+  resumeStageRuntime: (pipelineId: number, activationId: string, stageId: string) =>
+    api.post<StageRuntimeState>(`/pipelines/${pipelineId}/activations/${activationId}/stages/${stageId}/resume`).then((r) => r.data),
+  getStageQueueSummary: (pipelineId: number, activationId: string) =>
+    api.get<StageQueueSummary[]>(`/pipelines/${pipelineId}/activations/${activationId}/queues`).then((r) => r.data),
 };
 
 // ============================================================

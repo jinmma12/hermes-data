@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hermes.domain.models.monitoring import PipelineActivation
 from hermes.domain.models.pipeline import PipelineInstance, PipelineStep
 from hermes.domain.services.pipeline_manager import PipelineManager
+from hermes.domain.services.stage_lifecycle import StageLifecycleManager
 from hermes.infrastructure.database.session import get_db
 
 router = APIRouter(prefix="/api/v1/pipelines", tags=["pipelines"])
@@ -354,3 +355,141 @@ async def get_pipeline_status(
         return status_obj
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Stage Runtime Control
+# ---------------------------------------------------------------------------
+
+
+class StageRuntimeOut(BaseModel):
+    pipeline_activation_id: uuid.UUID
+    pipeline_step_id: uuid.UUID
+    runtime_status: str
+    stopped_at: str | None = None
+    stopped_by: str | None = None
+    resumed_at: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class StageStopRequest(BaseModel):
+    stopped_by: str = "operator"
+    reason: str | None = None
+
+
+class StageQueueOut(BaseModel):
+    stage_id: uuid.UUID
+    stage_order: int
+    stage_type: str
+    runtime_status: str
+    queued_count: int = 0
+    in_flight_count: int = 0
+    completed_count: int = 0
+
+
+async def _validate_activation_ownership(
+    db: AsyncSession, pipeline_id: uuid.UUID, activation_id: uuid.UUID
+) -> PipelineActivation:
+    """Verify activation belongs to the pipeline."""
+    activation = await db.get(PipelineActivation, activation_id)
+    if activation is None:
+        raise HTTPException(status_code=404, detail="Activation not found")
+    if activation.pipeline_instance_id != pipeline_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Activation {activation_id} does not belong to pipeline {pipeline_id}",
+        )
+    return activation
+
+
+@router.get(
+    "/{pipeline_id}/activations/{activation_id}/stages/runtime",
+    response_model=list[StageRuntimeOut],
+)
+async def get_stage_runtime_states(
+    pipeline_id: uuid.UUID,
+    activation_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Get runtime states for all stages in an activation."""
+    await _validate_activation_ownership(db, pipeline_id, activation_id)
+    from hermes.domain.models.monitoring import StageRuntimeState
+
+    stmt = select(StageRuntimeState).where(
+        StageRuntimeState.pipeline_activation_id == activation_id
+    )
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
+@router.post(
+    "/{pipeline_id}/activations/{activation_id}/stages/{stage_id}/stop",
+    response_model=StageRuntimeOut,
+)
+async def stop_stage(
+    pipeline_id: uuid.UUID,
+    activation_id: uuid.UUID,
+    stage_id: uuid.UUID,
+    body: StageStopRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Stop a stage runtime — prevents dispatch into this stage."""
+    await _validate_activation_ownership(db, pipeline_id, activation_id)
+
+    stopped_by = body.stopped_by if body else "operator"
+    lifecycle = StageLifecycleManager(db)
+    try:
+        state = await lifecycle.stop_stage(activation_id, stage_id, stopped_by=stopped_by)
+        return state
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post(
+    "/{pipeline_id}/activations/{activation_id}/stages/{stage_id}/resume",
+    response_model=StageRuntimeOut,
+)
+async def resume_stage(
+    pipeline_id: uuid.UUID,
+    activation_id: uuid.UUID,
+    stage_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Resume a stopped stage runtime."""
+    await _validate_activation_ownership(db, pipeline_id, activation_id)
+
+    lifecycle = StageLifecycleManager(db)
+    try:
+        state = await lifecycle.resume_stage(activation_id, stage_id)
+        return state
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.get(
+    "/{pipeline_id}/activations/{activation_id}/queues",
+    response_model=list[StageQueueOut],
+)
+async def get_queue_summary(
+    pipeline_id: uuid.UUID,
+    activation_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Get queue depth summary for all stages in an activation."""
+    await _validate_activation_ownership(db, pipeline_id, activation_id)
+
+    lifecycle = StageLifecycleManager(db)
+    summaries = await lifecycle.get_queue_summary(activation_id)
+    return [
+        StageQueueOut(
+            stage_id=s.stage_id,
+            stage_order=s.stage_order,
+            stage_type=s.stage_type,
+            runtime_status=s.runtime_status,
+            queued_count=s.queued_count,
+            in_flight_count=s.in_flight_count,
+            completed_count=s.completed_count,
+        )
+        for s in summaries
+    ]

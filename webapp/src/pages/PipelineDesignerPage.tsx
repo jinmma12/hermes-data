@@ -37,6 +37,62 @@ import ContextMenu from '../components/designer/ContextMenu';
 import { menuIcons } from '../components/designer/ContextMenu';
 
 // ============================================================
+// Runtime Badge + Controls (shown on each node)
+// ============================================================
+
+function RuntimeBadge({ data }: { data: StageNodeData }) {
+  const { runtimeStatus, queuedCount, isApiConnected, onStopStage, onResumeStage, nodeId } = data;
+
+  // Don't show runtime controls in local draft mode
+  if (!isApiConnected) return null;
+
+  const isStopped = runtimeStatus === 'STOPPED';
+  const hasQueue = (queuedCount ?? 0) > 0;
+
+  return (
+    <div className="mt-1.5 flex items-center gap-1">
+      {/* Runtime status badge */}
+      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+        isStopped
+          ? 'bg-red-100 text-red-700'
+          : 'bg-green-100 text-green-700'
+      }`}>
+        {runtimeStatus || 'RUNNING'}
+      </span>
+
+      {/* Queue count badge */}
+      {hasQueue && (
+        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
+          {queuedCount} queued
+        </span>
+      )}
+      {!hasQueue && runtimeStatus === 'RUNNING' && (
+        <span className="text-[9px] text-slate-400">queue empty</span>
+      )}
+
+      {/* Stop/Resume button */}
+      {isStopped ? (
+        <button
+          onClick={(e) => { e.stopPropagation(); onResumeStage?.(nodeId); }}
+          className="rounded bg-green-50 px-1.5 py-0.5 text-[9px] font-medium text-green-700 hover:bg-green-100"
+          title="Resume stage"
+        >
+          Resume
+        </button>
+      ) : (
+        <button
+          onClick={(e) => { e.stopPropagation(); onStopStage?.(nodeId); }}
+          className="rounded bg-red-50 px-1.5 py-0.5 text-[9px] font-medium text-red-600 hover:bg-red-100"
+          title="Stop stage"
+        >
+          Stop
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // Custom Node Components
 // ============================================================
 
@@ -58,6 +114,11 @@ interface StageNodeData {
   onOpenSettings: (stageId: number, refId: number, stageType: StageType, connectorCode?: string, nodeId?: string) => void;
   onOpenProperties: (stageId: number, refId: number, stageType: StageType, connectorCode?: string, nodeId?: string) => void;
   onDeleteNode: (nodeId: string) => void;
+  runtimeStatus?: string; // RUNNING, STOPPED, etc.
+  queuedCount?: number;
+  isApiConnected?: boolean; // false in local draft mode
+  onStopStage?: (nodeId: string) => void;
+  onResumeStage?: (nodeId: string) => void;
   nodeId: string;
   [key: string]: unknown;
 }
@@ -102,6 +163,7 @@ function CollectNode({ data }: { data: StageNodeData }) {
             <span className="rounded bg-blue-200 px-1 py-0.5 text-[9px] font-bold text-blue-700">v{data.recipeVersion}</span>
           </div>
         )}
+        <RuntimeBadge data={data} />
         <div className="mt-2 flex gap-1.5">
           <button
             onClick={() => data.onOpenSettings(data.stageId, data.refId, data.stageType, data.connectorCode, data.nodeId)}
@@ -162,6 +224,7 @@ function ProcessNode({ data }: { data: StageNodeData }) {
             <span className="rounded bg-purple-200 px-1 py-0.5 text-[9px] font-bold text-purple-700">v{data.recipeVersion}</span>
           </div>
         )}
+        <RuntimeBadge data={data} />
         <div className="mt-2 flex gap-1.5">
           <button
             onClick={() => data.onOpenSettings(data.stageId, data.refId, data.stageType, data.connectorCode, data.nodeId)}
@@ -222,6 +285,7 @@ function ExportNode({ data }: { data: StageNodeData }) {
             <span className="rounded bg-emerald-200 px-1 py-0.5 text-[9px] font-bold text-emerald-700">v{data.recipeVersion}</span>
           </div>
         )}
+        <RuntimeBadge data={data} />
         <div className="mt-2 flex gap-1.5">
           <button
             onClick={() => data.onOpenSettings(data.stageId, data.refId, data.stageType, data.connectorCode, data.nodeId)}
